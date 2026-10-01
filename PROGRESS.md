@@ -151,3 +151,10 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   parking/email records deleted, AI training bots blocked, search + agents allowed). Hosting via the new Workers
   static-assets flow (Pages is "legacy" in the dashboard): wrangler.jsonc → assets.directory ./public, no script;
   _headers applies. Validated with `npx wrangler deploy --dry-run`.
+## LIVE (2026-10-01): https://nehemiaslandaverde.com (+ www) — Cloudflare Workers static assets, Git auto-deploy
+  Custom domains via wrangler.jsonc routes (custom_domain: true) → Cloudflare created DNS + Let's Encrypt cert
+  (covers apex + *.). workers_dev/preview_urls explicitly false (single address). Verified live: all security headers,
+  TLS 1.0/1.1 refused, private files 404, zero third-party requests, full flow (walk → tap → ticket → tear → loft →
+  pin card → Work panel) with no console errors. Cloudflare tried to inject its Web Analytics beacon; CSP blocked it.
+  User TODO in dashboard: Always Use HTTPS (http currently 200), turn off Web Analytics/RUM auto-injection, DNSSEC
+  (+ DS record at Namecheap), GitHub + Namecheap 2FA.

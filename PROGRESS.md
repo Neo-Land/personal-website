@@ -134,3 +134,13 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   Private GitHub repo https://github.com/Neo-Land/personal-website (branch main). README.md = public-facing
   overview + pipeline + lessons; this file = dev log. .gitignore keeps neo.blend(.blend1) (75 MB), neo_raw/
   (61 MB) and failed Mixamo uploads out (no Git LFS). Screenshots in docs/.
+## Deploy hardening (2026-09-30)
+  Repo restructured: site lives in public/ (index.html + style.css + app.js split out of neo.html; neo.glb moved;
+  old 2D page → archive/index-2d.html). Dependencies self-hosted + pinned from npm: three 0.170.0 (module + GLTFLoader,
+  BufferGeometryUtils, RoomEnvironment), globe.gl 2.46.2 min, three-globe 2.45.3 earth textures; LICENSES.txt.
+  public/_headers: CSP default-src 'none'; script-src 'self' + sha256 of the importmap; style-src 'self' 'unsafe-inline'
+  (globe.gl injects CSS); img/connect/worker 'self' data:/blob:; frame-ancestors/base-uri/form-action/object-src none;
+  HSTS 1y, nosniff, XFO DENY, no-referrer, Permissions-Policy lockdown, COOP/CORP same-origin; vendor/* immutable cache.
+  Verified locally with a header-enforcing server (.claude/launch.json "site-strict" on :8010): full flow + loft/globe,
+  zero external requests. Bug found+fixed during split: globe loader onload handler had been commented out.
+  Hosting plan: Cloudflare Pages, Git-connected to the private repo, build output dir = public, no build command.

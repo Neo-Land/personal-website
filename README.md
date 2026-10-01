@@ -2,7 +2,7 @@
 
 An interactive 3D portfolio. A rigged character ("Neo") walks an oval in a black void, every footstep rippling the floor. Tap him and the camera pushes in while a boarding pass slides out of his pocket onto his seam; pull to tear the ticket and the seam splits open into light, revealing a moody brick loft where he sits beneath a glowing, pinned globe of places.
 
-Built with **three.js**, **Blender**, **Mixamo**, **Tripo** (AI image-to-3D) and **globe.gl** — one static HTML file plus one `.glb`.
+Built with **three.js**, **Blender**, **Mixamo**, **Tripo** (AI image-to-3D) and **globe.gl** — a static site (`public/`) with every dependency self-hosted.
 
 | Opening | Ticket | Tear + reveal | Loft |
 |---|---|---|---|
@@ -24,26 +24,29 @@ Works on phones (tap / swipe, narrower framing), respects `prefers-reduced-motio
 Any static server works (the page fetches `neo.glb`, so `file://` won't):
 
 ```bash
-python3 -m http.server 8000
+python3 -m http.server 8000 --directory public
 ```
 
-Then open <http://localhost:8000/neo.html>.
+Then open <http://localhost:8000/>.
 
 ## Edit your content
 
-Everything recruiters read lives in the `SITE` object near the top of the module script in [`neo.html`](neo.html): name, role, bio, skills, projects (`title`, `blurb`, `tags`, `live`, `code`, `image`), email, LinkedIn, GitHub and résumé. Empty links are hidden. Places on the globe are the `PLACES` list; the greeting is `GREETINGS`.
+Everything recruiters read lives in the `SITE` object near the top of the module script in [`public/app.js`](public/app.js): name, role, bio, skills, projects (`title`, `blurb`, `tags`, `live`, `code`, `image`), email, LinkedIn, GitHub and résumé. Empty links are hidden. Places on the globe are the `PLACES` list; the greeting is `GREETINGS`.
 
 ## Project structure
 
 | Path | What it is |
 |---|---|
-| `neo.html` | The whole site: three.js scenes, ticket, tear, loft, globe, portfolio panel |
-| `neo.glb` | Neo — 48.7k-face textured mesh, 41-bone Mixamo rig, animations `neo_slow_walk`, `neo_idle`, `neo_sit` |
+| `public/` | **The deployed site — only this folder is published** |
+| `public/index.html`, `style.css`, `app.js` | Markup, styles, and all scene/interaction code (three.js scenes, ticket, tear, loft, globe, portfolio panel) |
+| `public/neo.glb` | Neo — 48.7k-face textured mesh, 41-bone Mixamo rig, animations `neo_slow_walk`, `neo_idle`, `neo_sit` |
+| `public/vendor/` | Self-hosted, pinned three.js 0.170.0, globe.gl 2.46.2, earth textures (+ `LICENSES.txt`) |
+| `public/_headers` | Security headers for Cloudflare Pages (CSP, HSTS, no framing, permissions lockdown) |
 | `neo_rawv2/` | Tripo export the character was built from (FBX + PBR textures) |
 | `neo_rigged.fbx` | Mixamo auto-rig of that mesh |
 | `neo_slow_walk.fbx`, `neo_idle.fbx`, `neo_sit.fbx` | Mixamo animations (downloaded **With Skin**) |
 | `neo_front.png`, `neo_side.png`, `neo_back.png`, `neofrontv2.jpeg` | Character reference images (`neofrontv2` = upscaled front used for generation) |
-| `index.html` | Earlier 2D version of the jeans/ticket/globe idea (kept for reference) |
+| `archive/index-2d.html` | Earlier 2D version of the jeans/ticket/globe idea (kept for reference) |
 | `PROGRESS.md` | Detailed development log, decisions and gotchas |
 | `docs/` | Screenshots |
 
@@ -64,6 +67,15 @@ Everything recruiters read lives in the `SITE` object near the top of the module
 - **Footstep ripples** fire from the clip's measured foot-plant times; the slow walk barely lifts the feet, so height-based detection missed steps.
 - **Blender 5 actions are layered** (`action.layers → strips → channelbags → fcurves`); the glTF exporter freezes bones whose rotation mode was switched away from quaternion.
 
+## Security & privacy
+
+- **Static only** — no server code, database, logins or forms: nothing on the site to break into.
+- **No third-party requests** — three.js, globe.gl and textures are self-hosted and version-pinned, so a hijacked CDN can't inject code.
+- **Strict Content-Security-Policy** (`public/_headers`): scripts only from this origin plus the hashed import map; no framing (`frame-ancestors 'none'`), no plugins, no form posts, no `<base>` tricks. Inline *styles* are allowed only because globe.gl injects CSS at runtime.
+- **HSTS, nosniff, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, locked-down `Permissions-Policy`, COOP/CORP same-origin.**
+- **No cookies, analytics or trackers.** Only `public/` is deployed — source assets, dev log and git history are never served.
+- If you edit the `<script type="importmap">` block, recompute its SHA-256 and update `script-src` in `_headers`, or the page won't run.
+
 ## Large files (not in the repo)
 
 GitHub warns above 50 MB and Git LFS isn't set up, so these stay local:
@@ -76,6 +88,6 @@ To version them later: `brew install git-lfs && git lfs install && git lfs track
 ## Roadmap
 
 - [ ] Fill in `SITE` (bio, projects, links, résumé) and `PLACES`
-- [ ] Rename `neo.html` → `index.html`, deploy as a static site, point the domain
+- [ ] Deploy `public/` on Cloudflare Pages and point the domain
 - [ ] Add `og:url` / `og:image` (1200×630 screenshot) for link previews
 - [ ] Optional: Draco-compress `neo.glb` for faster first load

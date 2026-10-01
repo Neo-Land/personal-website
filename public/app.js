@@ -1,0 +1,774 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// Tuning knobs
+let rx = 1.3, rz = 0.5;       // walk path: an ellipse, long left↔right (rx) and shallow front↔back (rz); set in resize()
+const WALK_SPEED = 0.177;    // m/s, measured from Mixamo slow "Walking" (With Skin) root motion — keeps feet from sliding
+const RIPPLE_LIFE = 2.6;     // s
+// Foot plants in the slow-walk clip (s into the 2.33 s cycle), measured in Blender where each foot stops
+// swinging forward. His feet barely lift in this shuffle, so height-based detection misses steps.
+const FOOT_PLANTS = [{ t: 0.08, side: 'Right' }, { t: 1.27, side: 'Left' }];
+const MAX_RIPPLES = 16;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 50);
+const lookAt = new THREE.Vector3(0, 0.75, 0);   // aimed above Neo so the circle sits low, clear of the greeting
+
+scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x000000, 1.2));
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(1.5, 3, 2.5); scene.add(key);
+const rim = new THREE.DirectionalLight(0x8fb4ff, 2.5); rim.position.set(-2, 2, -3); scene.add(rim);
+
+// Ripple floor: black, rings drawn additively where feet land
+const ripples = Array.from({ length: MAX_RIPPLES }, () => new THREE.Vector3(0, 0, -100));
+let rippleIdx = 0;
+const floorMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  uniforms: { uTime: { value: 0 }, uRip: { value: ripples } },
+  vertexShader: `varying vec2 vP; void main(){ vec4 w = modelMatrix * vec4(position,1.); vP = w.xz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `
+    uniform float uTime; uniform vec3 uRip[${MAX_RIPPLES}]; varying vec2 vP;
+    void main(){
+      float c = 0.;
+      for (int i = 0; i < ${MAX_RIPPLES}; i++) {
+        float age = uTime - uRip[i].z;
+        if (age < 0. || age > ${RIPPLE_LIFE.toFixed(1)}) continue;
+        float d = length(vP - uRip[i].xy);
+        float fade = pow(1. - age / ${RIPPLE_LIFE.toFixed(1)}, 2.);
+        for (int k = 0; k < 3; k++) {             // 3 trailing rings per step
+          float r = age * 0.32 - float(k) * 0.07;
+          if (r < 0.) continue;
+          float w = 0.006 + age * 0.012;
+          c += exp(-pow((d - r) / w, 2.)) * fade * (1. - float(k) * 0.3);
+        }
+      }
+      gl_FragColor = vec4(vec3(0.55, 0.72, 1.0) * c * 0.7, 1.);
+    }`
+});
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), floorMat);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+function addRipple(x, z, t) {
+  ripples[rippleIdx].set(x, z, t);
+  rippleIdx = (rippleIdx + 1) % MAX_RIPPLES;
+}
+
+// Neo
+// Ticket: two halves (main + stub) split at the perforation, so the tear (beat 6) can pull them apart
+const TICKET_W = 0.15, TICKET_H = 0.06, PERF = 0.72;   // perforation at 72% of the width
+// Spots on Neo's rest pose (three.js: +Z = his front), measured on the mesh in Blender
+const POCKET = [-0.078, 0.512, 0.038], POCKET_TILT = 0.5;      // his right front pocket; top leans out past the jacket hem
+const FLY_TOP = [0, 0.505, 0.063], FLY_BOT = [0, 0.45, 0.03];  // the seam: just under the belt buckle, downward
+const FLY_GAP = 0.012;                                          // ticket floats this far in front of the seam
+
+function ticketTexture() {
+  const c = document.createElement('canvas'); c.width = 1200; c.height = 480;
+  const g = c.getContext('2d'), px = 1200 * PERF, font = (w, s) => `${w} ${s}px system-ui, -apple-system, Helvetica, Arial, sans-serif`;
+  const label = (s, x, y) => { g.fillStyle = '#7a7f8c'; g.font = font(600, 22); g.fillText(s, x, y); };
+  const value = (s, x, y, size = 40) => { g.fillStyle = '#151a22'; g.font = font(700, size); g.fillText(s, x, y); };
+  const barcode = (x0, x1, y, h) => { let x = x0, n = 7; g.fillStyle = '#151a22';
+    while (x < x1) { n = (n * 37 + 11) % 97; const w = 3 + (n % 4) * 3; g.fillRect(x, y, w, h); x += w + 3 + (n % 3) * 3; } };
+  g.save(); g.beginPath(); g.roundRect(0, 0, 1200, 480, 34); g.clip();
+  g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, 1200, 480);
+  g.fillStyle = '#1d2b53'; g.fillRect(0, 0, 1200, 100);
+  g.fillStyle = '#ffffff'; g.font = font(800, 46); g.fillText('BOARDING PASS', 44, 66);
+  g.font = font(700, 30); g.fillText('NL 2005', px + 36, 62);
+  label('PASSENGER', 44, 150); value('NEHEMIAS', 44, 196);
+  label('FROM', 44, 250); value('EWR', 44, 335, 92);
+  g.fillStyle = '#ff6a3d'; g.font = font(700, 64); g.fillText('✈', 280, 322);
+  label('TO', 400, 250); value('ANY', 400, 335, 92);
+  label('FLIGHT', 640, 150); value('NL 2005', 640, 196, 34);
+  label('GATE', 640, 250); value('B12', 640, 292, 34);
+  label('SEAT', 640, 345); value('1A', 640, 387, 34);
+  barcode(44, 580, 380, 64);
+  label('PASSENGER', px + 36, 150); value('NEHEMIAS', px + 36, 190, 28);
+  label('ROUTE', px + 36, 245); value('EWR → ANY', px + 36, 285, 30);
+  label('SEAT', px + 36, 335); value('1A', px + 36, 372, 30);
+  barcode(px + 36, 1160, 400, 50);
+  g.restore();
+  // perforation: dashed line + notches cut out top and bottom
+  g.strokeStyle = '#a3a3a3'; g.lineWidth = 4; g.setLineDash([14, 12]);
+  g.beginPath(); g.moveTo(px, 40); g.lineTo(px, 440); g.stroke();
+  g.globalCompositeOperation = 'destination-out';
+  for (const y of [0, 480]) { g.beginPath(); g.arc(px, y, 24, 0, Math.PI * 2); g.fill(); }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+function makeTicket() {
+  const mat = new THREE.MeshStandardMaterial({ map: ticketTexture(), side: THREE.DoubleSide, alphaTest: 0.5, roughness: 0.55 });
+  const half = (u0, u1) => {
+    const geo = new THREE.PlaneGeometry(TICKET_W * (u1 - u0), TICKET_H);
+    const uv = geo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setX(i, u0 + uv.getX(i) * (u1 - u0));
+    geo.translate(TICKET_W * ((u0 + u1) / 2 - PERF), 0, 0); // group origin sits on the perforation
+    return new THREE.Mesh(geo, mat);
+  };
+  const t = new THREE.Group();
+  t.userData.main = half(0, PERF); t.userData.stub = half(PERF, 1);
+  t.add(t.userData.main, t.userData.stub);
+  return t;
+}
+
+// The reveal: a glowing white lens along the seam, origin at the top of the seam, length 1 downward, width 1
+function makeSlit() {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0); shape.quadraticCurveTo(0.5, -0.5, 0, -1); shape.quadraticCurveTo(-0.5, -0.5, 0, 0);
+  const geo = new THREE.ShapeGeometry(shape, 32);
+  // core draws over the jeans (no depth test) but before the ticket (renderOrder), so the ticket stays in front
+  const core = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, depthTest: false }));
+  const glow = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xcfdcff, toneMapped: false, transparent: true,
+    opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
+  core.renderOrder = 1;
+  glow.scale.set(3, 1.15, 1); glow.position.y = 0.07;
+  const g = new THREE.Group(); g.add(glow, core); g.visible = false;
+  return g;
+}
+
+let neo, mixer, walk, idle, hit, ticket, slit, skinned, spots, neoClips;
+let tear = 0, opening = 0, drag = null;    // tear 0→1 follows the drag; opening 0→1 is the bloom into white
+const whiteEl = document.getElementById('white'), hintEl = document.getElementById('hint');
+
+// ══ YOUR CONTENT — edit everything in SITE; the panel is built from it ═══════════════════
+const SITE = {
+  name: 'Nehemias',                                   // TODO: full name
+  role: 'Software Developer · City, State',           // TODO: what you do · where
+  bio: [                                              // TODO: 2–3 short paragraphs, first person
+    'TODO — one or two sentences on what you build and what you care about.',
+    'TODO — what you are looking for next (role, team, kind of problems).',
+  ],
+  skills: ['TODO', 'JavaScript', 'three.js', 'Blender'],   // TODO: your real stack
+  projects: [                                         // TODO: 3–6 best projects, strongest first
+    { title: 'This website', blurb: 'An interactive 3D portfolio: a rigged character, a tear-to-reveal transition, and a lit loft with a pinned globe. Built with three.js, Blender and Mixamo.',
+      tags: ['three.js', 'WebGL', 'Blender'], live: '', code: '', image: '' },
+    { title: 'TODO Project', blurb: 'TODO — the problem, what you built, and one result (users, speed-up, award…).',
+      tags: ['TODO'], live: '', code: '', image: '' },
+  ],
+  email: '',                                          // TODO: you@yourdomain.com
+  linkedin: '',                                       // TODO: https://www.linkedin.com/in/…
+  github: '',                                         // TODO: https://github.com/…
+  resume: '',                                         // TODO: e.g. 'resume.pdf' (put the PDF next to this file)
+  cta: 'Open to new roles and collaborations — the fastest way to reach me is email.',
+};
+// ═══════════════════════════════════════════════════════════════════════════════════════
+
+const folio = document.getElementById('folio'), navEl = document.getElementById('nav'), skipEl = document.getElementById('skip');
+(function fillFolio() {
+  const el = (tag, props = {}, kids = []) => { const n = Object.assign(document.createElement(tag), props); n.append(...kids); return n; };
+  const link = (href, text, cls = 'btn') => el('a', { href, className: cls, textContent: text, ...(href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {}) });
+  document.getElementById('f-name').textContent = SITE.name;
+  document.getElementById('f-role').textContent = SITE.role;
+  document.getElementById('f-bio').append(...SITE.bio.map((t) => el('p', { textContent: t })));
+  document.getElementById('f-skills').append(...SITE.skills.map((t) => el('li', { textContent: t })));
+  document.getElementById('f-projects').append(...SITE.projects.map((p) => el('article', { className: 'card' }, [
+    ...(p.image ? [el('img', { src: p.image, alt: '', loading: 'lazy' })] : []),
+    el('div', { className: 'body' }, [
+      el('h3', { textContent: p.title }),
+      el('p', { textContent: p.blurb }),
+      el('ul', { className: 'chips' }, p.tags.map((t) => el('li', { textContent: t }))),
+      el('div', { className: 'links' }, [...(p.live ? [link(p.live, 'Live ↗', 'ui')] : []), ...(p.code ? [link(p.code, 'Code ↗', 'ui')] : [])]),
+    ]),
+  ])));
+  document.getElementById('f-cta').textContent = SITE.cta;
+  document.getElementById('f-links').append(...[
+    SITE.email && link(`mailto:${SITE.email}`, 'Email me', 'btn primary'),
+    SITE.linkedin && link(SITE.linkedin, 'LinkedIn ↗'),
+    SITE.github && link(SITE.github, 'GitHub ↗'),
+    SITE.resume && Object.assign(link(SITE.resume, 'Résumé (PDF) ↓'), { download: '' }),
+  ].filter(Boolean));
+  document.getElementById('f-foot').textContent = `© ${new Date().getFullYear()} ${SITE.name}`;
+})();
+function openFolio(id) {
+  if (!folio.open) folio.showModal();
+  document.getElementById(id).scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+}
+document.querySelectorAll('[data-open]').forEach((b) => b.onclick = () => openFolio(b.dataset.open));
+document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => openFolio(b.dataset.go));
+folio.querySelector('[data-close]').onclick = () => folio.close();
+folio.addEventListener('click', (e) => { if (e.target === folio) folio.close(); });   // click outside the panel closes it
+let skipWanted = false;
+skipEl.onclick = () => skipIntro();
+function skipIntro() {                     // straight to the loft (for visitors in a hurry)
+  if (!neo) { skipWanted = true; skipEl.textContent = 'Loading…'; return; }
+  if (state === 'opening' || state === 'white') return;
+  state = 'white'; drag = null;
+  whiteEl.style.transition = 'opacity .5s'; whiteEl.style.opacity = 1;
+  introEl.classList.add('gone'); skipEl.classList.add('hide'); navEl.classList.remove('hide');
+  setTimeout(enterRoom, 500);
+}
+
+// ── Typed greeting (starts on page load) ──────────────────────────
+const GREETINGS = [
+  [['en', 'Welcome, friend...'], ['it', 'Benvenuto, amico...'], ['es', 'Bienvenido, amigo...'], ['ja', 'ようこそ、友よ…']],
+  [['en', 'This is Nehemias'], ['it', 'Questo è Nehemias'], ['es', 'Este es Nehemias'], ['ja', 'こちらはネヘミアスです']],
+];
+const introEl = document.getElementById('intro');
+(async () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const quick = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const caret = document.createElement('span'); caret.className = 'caret';
+  const lines = GREETINGS[0].map(([lang]) => {
+    const div = document.createElement('div'); div.lang = lang;
+    const txt = div.appendChild(document.createElement('span'));
+    introEl.appendChild(div); return txt;
+  });
+  const put = (i) => lines[i].parentNode.appendChild(caret);
+  async function type(set) {
+    for (let i = 0; i < set.length; i++) {
+      put(i);
+      if (quick) { lines[i].textContent = set[i][1]; continue; }
+      for (const ch of set[i][1]) {
+        lines[i].appendChild(document.createElement('i')).textContent = ch;
+        await wait(45 + Math.random() * 60);
+      }
+      await wait(260);
+    }
+  }
+  async function erase() {
+    for (let i = lines.length - 1; i >= 0; i--) {
+      put(i);
+      while (lines[i].lastChild) { lines[i].lastChild.remove(); await wait(quick ? 0 : 22); }
+    }
+  }
+  await wait(500);
+  await type(GREETINGS[0]);
+  await wait(1800);
+  await erase();
+  await wait(400);
+  await type(GREETINGS[1]);
+})();
+
+// ── White room + globe (beat 7) ───────────────────────────────────
+// Your places: edit freely (lat/lng from any map). Each one becomes a pin in the globe.
+const PLACES = [
+  { name: 'Reykjavík', country: 'Iceland', lat: 64.15, lng: -21.94, note: 'Hot springs in the cold.' },
+  { name: 'Cusco', country: 'Peru', lat: -13.53, lng: -71.97, note: 'Four days on the Inca Trail.' },
+  { name: 'Amalfi', country: 'Italy', lat: 40.63, lng: 14.6, note: 'Cliff jumps and lemon everything.' },
+  { name: 'Tokyo', country: 'Japan', lat: 35.68, lng: 139.65, note: 'Came home with a suitcase full of clothes.' },
+  { name: 'Cape Town', country: 'South Africa', lat: -33.92, lng: 18.42, note: 'Up Lion’s Head for sunrise.' },
+];
+const PIN_HEIGHT = 0.07;                         // how far the pins poke out (fraction of the globe's radius)
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const roomEl = document.getElementById('room'), cardEl = document.getElementById('card');
+let globeLib, world;
+// globe.gl is ~1.8 MB: start fetching while the ticket waits on the seam, so the room is ready when the light fades
+const loadGlobe = () => globeLib ??= new Promise((ok, fail) => {
+  const sc = document.createElement('script');
+  sc.src = 'vendor/globe.gl.min.js'; sc.onload = ok; sc.onerror = fail;   // self-hosted, pinned 2.46.2
+  document.head.appendChild(sc);
+});
+// The loft (after the reference photo): exposed brick, dark glossy hardwood, tall steel windows on the right with
+// brick piers, black ceiling beams. Moody + warm: a low amber sun through the windows throws light streaks and grid
+// shadows; dim warm ambient; the globe's blue glow is the cool contrast.
+const GLOBE_R = 0.33, GLOBE_AT = new THREE.Vector3(0, 0.95, 0);  // globe size + centre in the room (Neo's head tops out at 0.45)
+const loft = new THREE.Scene(), loftCam = new THREE.PerspectiveCamera(45, 1, 0.05, 40);
+const BACK = -2, CEIL = 3, WIN_TOP = 2.45, SILL = 0.12;
+const BAYS = [[-1.9, -1.1], [-0.9, -0.1], [0.1, 0.9]];            // window z-ranges on the right wall; brick piers between
+const BRICK_TILE = 1.7;                                          // metres per brick texture tile (bigger = larger bricks)
+let roomHalf = 1.9, walls;
+
+function canvasTex(w, h, draw, color = true) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  if (color) t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+const rand = (seed) => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+// UVs in world units (one texture tile = `tile` m) so bricks and planks are the same size on every surface
+function worldUV(geo, sx, sy, tile) { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * sx / tile, uv.getY(i) * sy / tile); }
+function boxUV(geo, w, h, d, tile) {
+  const uv = geo.attributes.uv, dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];   // BoxGeometry face order ±x, ±y, ±z
+  for (let f = 0; f < 6; f++) for (let i = f * 4; i < f * 4 + 4; i++) uv.setXY(i, uv.getX(i) * dims[f][0] / tile, uv.getY(i) * dims[f][1] / tile);
+}
+// Fine grit: n tiny specks between two grey/colour values, for surface texture in maps and bump maps
+function grit(g, W, H, n, seed, dark, light, max = 3) {
+  const r = rand(seed);
+  for (let i = 0; i < n; i++) { g.fillStyle = r() < 0.5 ? dark(r()) : light(r()); g.fillRect(r() * W, r() * H, 1 + r() * max, 1 + r() * max); }
+}
+function pair(S) {                                          // a colour canvas + a bump canvas drawn in lockstep
+  const mk = () => { const c = document.createElement('canvas'); c.width = c.height = S; return [c, c.getContext('2d')]; };
+  const [cm, gm] = mk(), [cb, gb] = mk();
+  const tex = (c, color) => {
+    const t = new THREE.CanvasTexture(c);
+    if (color) t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    return t;
+  };
+  return { gm, gb, done: () => ({ map: tex(cm, true), bump: tex(cb, false) }) };
+}
+// Dark hardwood: long planks with grain, slightly uneven boards, recessed seams, fine scratches
+function woodTex() {
+  const S = 1024, rowH = 48, r = rand(11), { gm, gb, done } = pair(S);
+  for (let y = 0; y < S; y += rowH) {
+    const x0 = r() * 500;
+    let x = x0;
+    while (x < S + x0) {                                   // row ends exactly where it started, one tile later
+      const len = Math.min(420 + r() * 520, S + x0 - x);
+      const col = `hsl(${20 + r() * 8}, ${32 + r() * 15}%, ${13 + r() * 9}%)`, h = 150 + r() * 50;
+      const grain = Array.from({ length: 16 }, () => [r() < 0.6, 0.04 + r() * 0.07, 1 + r() * 2, y + r() * rowH, (r() - 0.5) * 6, (r() - 0.5) * 6, (r() - 0.5) * 4]);
+      for (const ox of [0, S]) {                           // draw twice so planks wrap across the tile edge (no seam)
+        const px = x - ox;
+        gm.fillStyle = col; gm.fillRect(px, y, len, rowH);
+        gb.fillStyle = `rgb(${h},${h},${h})`; gb.fillRect(px, y, len, rowH);
+        for (const [dark, a, w, gy, d1, d2, d3] of grain) {
+          const line = (g, style) => { g.strokeStyle = style; g.lineWidth = w; g.beginPath(); g.moveTo(px, gy);
+            g.bezierCurveTo(px + len / 3, gy + d1, px + len * 2 / 3, gy + d2, px + len, gy + d3); g.stroke(); };
+          line(gm, `rgba(${dark ? '0,0,0' : '200,150,110'},${a})`);
+          line(gb, `rgba(${dark ? '0,0,0' : '255,255,255'},${a * 3})`); // grain you can see in the light
+        }
+        for (const g of [gm, gb]) { g.fillStyle = '#000'; g.fillRect(px, y, 3, rowH); }   // recessed plank end
+      }
+      x += len;
+    }
+    for (const g of [gm, gb]) { g.fillStyle = '#000'; g.fillRect(0, y, S, 3); }         // recessed seam between rows
+  }
+  grit(gm, S, S, 14000, 4, (v) => `rgba(0,0,0,${v * 0.18})`, (v) => `rgba(255,220,180,${v * 0.06})`, 2);
+  grit(gb, S, S, 26000, 4, (v) => `rgba(0,0,0,${v * 0.35})`, (v) => `rgba(255,255,255,${v * 0.3})`, 2);
+  const rs = rand(9);                                      // faint scratches
+  for (let i = 0; i < 160; i++) {
+    const x = rs() * S, y = rs() * S, a = rs() * Math.PI, l = 20 + rs() * 90;
+    gm.strokeStyle = `rgba(255,225,190,${0.03 + rs() * 0.05})`; gm.lineWidth = 1;
+    gm.beginPath(); gm.moveTo(x, y); gm.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); gm.stroke();
+    gb.strokeStyle = 'rgba(0,0,0,.35)'; gb.lineWidth = 1;
+    gb.beginPath(); gb.moveTo(x, y); gb.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); gb.stroke();
+  }
+  return done();
+}
+// Running-bond brick, 1 tile: colour + bump. Uneven, pitted faces, chipped edges, gritty recessed mortar.
+function brickTex() {
+  const ROWS = 22, COLS = 8, S = 1024, rowH = S / ROWS, bw = S / COLS, m = 6;
+  const bricks = [], r = rand(3), { gm, gb, done } = pair(S);
+  for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
+    const t = r();                                          // mostly tan/orange/red-brown, a few burnt and pale ones
+    const l = t < 0.08 ? 20 + r() * 6 : t > 0.93 ? 55 + r() * 8 : 30 + r() * 18;
+    bricks.push({ x: i * bw + (j % 2) * bw / 2, y: j * rowH, h: 14 + r() * 20, s: 30 + r() * 25, l, seed: r() * 1e9 | 0 });
+  }
+  const each = (fn) => { for (const b of bricks) for (const ox of [0, -S]) fn(b, b.x + ox); };
+  gm.fillStyle = '#7d7266'; gm.fillRect(0, 0, S, S);       // mortar
+  gb.fillStyle = '#2a2a2a'; gb.fillRect(0, 0, S, S);
+  grit(gm, S, S, 30000, 2, (v) => `rgba(40,35,30,${v * 0.4})`, (v) => `rgba(200,190,175,${v * 0.4})`, 2);
+  grit(gb, S, S, 30000, 2, (v) => `rgba(0,0,0,${v * 0.6})`, (v) => `rgba(110,110,110,${v * 0.6})`, 2);
+  each((b, x) => {
+    const x1 = x + m / 2, y1 = b.y + m / 2, w = bw - m, h = rowH - m, v = 185 + (b.seed % 50);
+    gm.fillStyle = `hsl(${b.h}, ${b.s}%, ${b.l}%)`; gm.fillRect(x1, y1, w, h);
+    const tilt = gb.createLinearGradient(x1, y1, x1 + w, y1 + h);      // faces aren't perfectly flat
+    tilt.addColorStop(0, `rgb(${v - 18},${v - 18},${v - 18})`); tilt.addColorStop(1, `rgb(${v + 12},${v + 12},${v + 12})`);
+    gb.fillStyle = tilt; gb.fillRect(x1, y1, w, h);
+    const rr = rand(b.seed);
+    for (let k = 0; k < 60; k++) {                          // colour speckle + soot
+      gm.fillStyle = `rgba(${rr() < 0.5 ? '0,0,0' : '255,230,200'},${rr() * 0.2})`;
+      gm.fillRect(x1 + rr() * (w - 4), y1 + rr() * (h - 4), 1 + rr() * 6, 1 + rr() * 4);
+    }
+    for (let k = 0; k < 30; k++) {                          // a few pits and pores
+      const px = x1 + rr() * w, py = y1 + rr() * h, pr = 0.5 + rr() * 1.6;
+      gb.fillStyle = `rgba(0,0,0,${0.18 + rr() * 0.27})`; gb.beginPath(); gb.arc(px, py, pr, 0, 7); gb.fill();
+      gm.fillStyle = `rgba(30,15,10,${0.06 + rr() * 0.1})`; gm.beginPath(); gm.arc(px, py, pr, 0, 7); gm.fill();
+    }
+    for (let k = 0; k < 5; k++) {                           // chipped edges: bites of mortar into the brick outline
+      const side = rr() * 4 | 0, along = rr();
+      const cx = side < 2 ? x1 + along * w : side === 2 ? x1 : x1 + w, cy = side < 2 ? (side ? y1 + h : y1) : y1 + along * h;
+      const cr = 2 + rr() * 5;
+      gm.fillStyle = '#6f655a'; gm.beginPath(); gm.ellipse(cx, cy, cr * 1.6, cr, 0, 0, 7); gm.fill();
+      gb.fillStyle = '#3a3a3a'; gb.beginPath(); gb.ellipse(cx, cy, cr * 1.6, cr, 0, 0, 7); gb.fill();
+    }
+  });
+  grit(gb, S, S, 40000, 7, (v) => `rgba(0,0,0,${v * 0.25})`, (v) => `rgba(255,255,255,${v * 0.2})`, 1.5);   // fine sand grain
+  return done();
+}
+// Steel window grid: black bars on transparent (cols × rows panes); also casts the grid shadow
+function mullionTex(cols, rows) {
+  return canvasTex(512, 1024, (g, W, H) => {
+    g.fillStyle = '#000'; const f = 22, b = 9;
+    g.fillRect(0, 0, W, f); g.fillRect(0, H - f, W, f); g.fillRect(0, 0, f, H); g.fillRect(W - f, 0, f, H);
+    for (let i = 1; i < cols; i++) g.fillRect(i * W / cols - b / 2, 0, b, H);
+    for (let j = 1; j < rows; j++) g.fillRect(0, j * H / rows - b / 2, W, b);
+  });
+}
+// Golden-hour city outside the windows
+function skyTex() {
+  return canvasTex(2048, 1024, (g, W, H) => {
+    const gr = g.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, '#3d4a66'); gr.addColorStop(0.45, '#c98a5a'); gr.addColorStop(0.75, '#f3b877'); gr.addColorStop(1, '#ffd9a3');
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    const r = rand(21);
+    for (let x = 0; x < W;) {                               // skyline + a few lit windows
+      const w = 40 + r() * 120, h = H * (0.18 + r() * 0.38), top = H - h;
+      g.fillStyle = `rgba(${28 + r() * 20},${24 + r() * 16},${30 + r() * 20},${0.85 + r() * 0.15})`; g.fillRect(x, top, w, h);
+      for (let k = 0; k < w * h / 900; k++) if (r() < 0.25) { g.fillStyle = `rgba(255,${190 + r() * 50},120,${0.4 + r() * 0.5})`; g.fillRect(x + 4 + r() * (w - 10), top + 6 + r() * (h - 12), 3, 4); }
+      x += w + r() * 10;
+    }
+  });
+}
+function buildLoft() {
+  const { map: brick, bump } = brickTex();
+  const brickMat = new THREE.MeshStandardMaterial({ map: brick, bumpMap: bump, bumpScale: 4, roughness: 0.95 });
+  const vault = brickMat.clone(); vault.color.setScalar(0.4);              // darker brick ceiling
+  const steel = new THREE.MeshStandardMaterial({ color: 0x141517, roughness: 0.5, metalness: 0.6 });
+  const plane = (w, h, mat, tile) => { const geo = new THREE.PlaneGeometry(w, h); if (tile) worldUV(geo, w, h, tile); const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; return m; };
+  const box = (w, h, d, mat, tile) => { const geo = new THREE.BoxGeometry(w, h, d); if (tile) boxUV(geo, w, h, d, tile); const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; return m; };
+
+  const wood = woodTex();
+  const floor = plane(12, 12, new THREE.MeshStandardMaterial({ map: wood.map, bumpMap: wood.bump, bumpScale: 1.6, roughness: 0.42 }), 1.6);
+  floor.rotation.x = -Math.PI / 2;
+  const back = plane(12, CEIL, brickMat, BRICK_TILE); back.position.set(0, CEIL / 2, BACK);
+  const left = plane(12, CEIL, brickMat, BRICK_TILE); left.rotation.y = Math.PI / 2;
+  const ceiling = plane(12, 12, vault, BRICK_TILE); ceiling.rotation.x = Math.PI / 2; ceiling.position.y = CEIL;
+  loft.add(floor, back, left, ceiling);
+  for (const z of [-1.5, -0.3, 0.9, 2.1]) { const b = box(12, 0.16, 0.1, steel); b.position.set(0, CEIL - 0.08, z); loft.add(b); }
+  const duct = box(0.3, 0.22, 12, steel); duct.position.set(-0.7, CEIL - 0.3, 0);
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 12, 12), steel); pipe.rotation.x = Math.PI / 2; pipe.position.set(0.55, CEIL - 0.24, 0);
+  loft.add(duct, pipe);
+
+  // Right wall: brick piers between tall steel windows, a sill below and a header above (all cast shadows)
+  const right = new THREE.Group(), T = 0.22, L = 8, zc = BACK + L / 2;
+  const add = (m, x, y, z) => { m.position.set(x, y, z); right.add(m); };
+  add(box(T, SILL, L, brickMat, BRICK_TILE), T / 2, SILL / 2, zc);
+  add(box(T, CEIL - WIN_TOP, L, brickMat, BRICK_TILE), T / 2, (WIN_TOP + CEIL) / 2, zc);
+  const piers = [[BACK, BAYS[0][0]], ...BAYS.slice(1).map((b, i) => [BAYS[i][1], b[0]]), [BAYS[2][1], BACK + L]];
+  for (const [z0, z1] of piers) add(box(T + 0.06, WIN_TOP - SILL, z1 - z0, brickMat, BRICK_TILE), T / 2 - 0.03, (SILL + WIN_TOP) / 2, (z0 + z1) / 2);
+  const grid = new THREE.MeshStandardMaterial({ map: mullionTex(3, 6), color: 0x0d0e10, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.6 });
+  for (const [z0, z1] of BAYS) {
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, WIN_TOP - SILL), grid);
+    w.rotation.y = -Math.PI / 2; w.castShadow = true;
+    add(w, T * 0.4, (SILL + WIN_TOP) / 2, (z0 + z1) / 2);
+  }
+  const sky = new THREE.Mesh(new THREE.PlaneGeometry(16, 8), new THREE.MeshBasicMaterial({ map: skyTex(), toneMapped: false }));
+  sky.rotation.y = -Math.PI / 2;
+  add(sky, 4, 2.4, -0.5);
+  walls = { left, right, back, floor, ceiling };
+  loft.add(right);
+
+  // Lighting: moody and warm
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  loft.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;  // soft reflections so the floor reads glossy
+  loft.environmentIntensity = 0.16;
+  loft.add(new THREE.HemisphereLight(0xffc896, 0x140c08, 0.35));
+  const fill = new THREE.DirectionalLight(0xffa860, 0.4);                  // faint warm front fill so Neo isn't a silhouette
+  fill.position.set(-1.5, 2, 4);
+  loft.add(fill);
+  const sun = new THREE.DirectionalLight(0xffae62, 5);                     // low amber sun through the windows
+  sun.position.set(6, 2.6, 2.2); sun.target.position.set(-0.6, 0, -1.6);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+  Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.5, far: 16 });
+  loft.add(sun, sun.target);
+  const glow = new THREE.PointLight(0x4d8dff, 2.6, 3.2, 1.8);             // the globe's blue light spilling onto Neo and the floor
+  glow.position.copy(GLOBE_AT);
+  loft.add(glow);
+}
+// Room width + camera adapt to the screen; places the walls and the globe overlay
+function layoutRoom() {
+  const a = innerWidth / innerHeight, t = Math.tan(THREE.MathUtils.degToRad(loftCam.fov / 2));
+  roomHalf = a < 1 ? 1.25 : 1.9;                                        // narrower loft on phones so the windows stay in view
+  const d = Math.max(3, (roomHalf + 0.05) / (t * a) - 0.7);            // far enough back to see the window wall
+  const turn = a < 1 ? 0.35 : 0;                                      // on phones, angle the view toward the windows
+  loftCam.aspect = a; loftCam.position.set(-turn, 0.8, d); loftCam.lookAt(turn * 0.6, 0.62, 0); loftCam.updateProjectionMatrix();
+  loftCam.updateMatrixWorld();                                          // project() below needs the new view
+  walls.left.position.set(-roomHalf, CEIL / 2, 0);
+  walls.right.position.x = roomHalf;
+  for (const m of [walls.back, walls.floor, walls.ceiling]) m.position.x = roomHalf - 6;   // stop at the window wall (12 m wide)
+  // globe overlay: centre on GLOBE_AT, sized to GLOBE_R as seen by this camera
+  const c = GLOBE_AT.clone().project(loftCam), up = GLOBE_AT.clone().add(new THREE.Vector3(0, GLOBE_R, 0)).project(loftCam);
+  const rFrac = (up.y - c.y);                                           // radius as a fraction of the half-height
+  document.getElementById('float').style.transform = `translate(${c.x * innerWidth / 2}px, ${-c.y * innerHeight / 2}px)`;
+  document.getElementById('float').style.setProperty('--gd', `${rFrac * innerHeight}px`);
+  homeAltitude = 1 / Math.sin(Math.atan(rFrac * Math.tan(25 * Math.PI / 180))) - 1;   // globe.gl: 50° fov, altitude in radii
+}
+let homeAltitude = 2.6;
+const homeView = () => ({ lat: 25, lng: 10, altitude: homeAltitude });
+
+async function enterRoom() {
+  if (walls) return;                              // already in the loft
+  hintEl.remove();
+  navEl.classList.remove('hide'); skipEl.classList.add('hide');
+  buildLoft();
+  layoutRoom();
+  // Neo walks out of the void into the loft and sits down under the globe
+  loft.add(neo);
+  neo.position.set(0, 0, 0.15); neo.rotation.set(0, 0, 0);
+  neo.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  ticket.visible = slit.visible = false;
+  mixer.stopAllAction();
+  mixer.clipAction(neoClips.find((c) => c.name === 'neo_sit')).play();
+  const clock2 = new THREE.Clock();
+  renderer.setAnimationLoop(() => { mixer.update(Math.min(clock2.getDelta(), 0.05)); renderer.render(loft, loftCam); });
+  roomEl.hidden = false;
+  await loadGlobe();
+  world = Globe()(document.getElementById('globe'))
+    .width(innerWidth).height(innerHeight)
+    .backgroundColor('rgba(0,0,0,0)')
+    .globeImageUrl('vendor/earth-blue-marble.jpg')
+    .bumpImageUrl('vendor/earth-topology.png')
+    .atmosphereColor('#4d8dff').atmosphereAltitude(0.28)
+    // pins: a steel needle poking out of the surface (3D) ...
+    .pointsData(PLACES).pointAltitude(PIN_HEIGHT).pointRadius(0.12).pointResolution(8).pointColor(() => '#c4c8d0')
+    // ... with a tappable head on the tip
+    .htmlElementsData(PLACES).htmlAltitude(PIN_HEIGHT)
+    .htmlElement((d) => {
+      const el = document.createElement('button');
+      el.className = 'pin'; el.title = el.ariaLabel = `${d.name}, ${d.country}`;
+      el.onclick = () => pickPlace(d, el);
+      return el;
+    })
+    .pointOfView(homeView());
+  world.htmlElementVisibilityModifier?.((el, visible) => { el.style.opacity = visible ? 1 : 0; el.style.pointerEvents = visible ? 'auto' : 'none'; });
+  world.controls().enableZoom = false;
+  world.controls().autoRotate = !calm;
+  world.controls().autoRotateSpeed = 0.5;
+  requestAnimationFrame(() => roomEl.classList.add('in'));
+  whiteEl.style.transition = 'opacity 1.6s';                           // the light fades to reveal the loft
+  whiteEl.style.opacity = 0;
+}
+function pickPlace(d, el) {
+  world.controls().autoRotate = false;
+  world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 0.55 }, calm ? 0 : 1600);   // zoom right in on the pin
+  document.querySelectorAll('.pin.on').forEach((x) => x.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('c-name').textContent = d.name;
+  document.getElementById('c-country').textContent = d.country;
+  document.getElementById('c-note').textContent = d.note;
+  cardEl.hidden = false;
+  roomEl.classList.add('picked');
+}
+cardEl.querySelector('.x').onclick = () => {
+  cardEl.hidden = true;
+  document.querySelector('.pin.on')?.classList.remove('on');
+  world.pointOfView(homeView(), calm ? 0 : 1400);
+  world.controls().autoRotate = !calm;
+};
+const feet = {};
+let walkPrev = 0;
+let state = 'walking', angle = 0, turnFrom = 0, turnTo = 0, turnT = 0, zoomS = 0;
+const camFrom = new THREE.Vector3(), lookFrom = new THREE.Vector3();
+
+new GLTFLoader().load('neo.glb', (gltf) => {
+  neo = gltf.scene;
+  scene.add(neo);
+  neo.traverse((o) => {
+    if (o.isMesh) o.frustumCulled = false; // skinned bounds don't follow the animation
+    const foot = o.isBone && o.name.match(/(Left|Right)Foot$/);
+    if (foot) feet[foot[1]] = o;
+  });
+
+  // The ticket follows real points on the deformed mesh (pocket, top/bottom of the seam), so it lines up in any pose
+  skinned = neo.getObjectByProperty('isSkinnedMesh', true);
+  const pos = skinned.geometry.attributes.position, p = new THREE.Vector3();
+  const nearest = (a) => {
+    const target = new THREE.Vector3(...a); let best = 0, bd = Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      const d = p.fromBufferAttribute(pos, i).applyMatrix4(skinned.bindMatrix).distanceToSquared(target);
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  };
+  spots = { pocket: nearest(POCKET), top: nearest(FLY_TOP), bot: nearest(FLY_BOT) };
+  ticket = makeTicket();
+  ticket.traverse((o) => { o.renderOrder = 2; });
+  scene.add(ticket);
+  slit = makeSlit();
+  scene.add(slit);
+
+  mixer = new THREE.AnimationMixer(neo);
+  neoClips = gltf.animations;
+  const clip = (n) => gltf.animations.find((a) => a.name === n);
+  walk = mixer.clipAction(clip('neo_slow_walk'));
+  idle = mixer.clipAction(clip('neo_idle'));
+  walk.play();
+
+  // Invisible, generous tap target (easier on phones than hitting the mesh)
+  hit = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.05), new THREE.MeshBasicMaterial({ visible: false }));
+  hit.position.y = 0.52;
+  neo.add(hit);
+  if (skipWanted) skipIntro();
+});
+
+// Tap / click on Neo → stop, face camera, idle
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+function pick(e) {
+  ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  return hit && ray.intersectObject(hit).length > 0;
+}
+const TEAR_COMMIT = 0.6;                       // let go past this and it finishes on its own
+const dragLen = () => 0.45 * Math.min(innerWidth, innerHeight);
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (state === 'walking' && pick(e)) tapNeo();
+  else if (state === 'ready') {                // drag in any direction to tear + reveal
+    drag = { x: e.clientX, y: e.clientY, from: tear };
+    try { renderer.domElement.setPointerCapture(e.pointerId); } catch {} // keep the drag even if the finger leaves the canvas
+    state = 'tearing';
+  }
+});
+function endDrag() {
+  if (!drag) return;
+  drag = null;
+  state = tear >= TEAR_COMMIT ? 'opening' : 'ready';
+}
+renderer.domElement.addEventListener('pointerup', endDrag);
+renderer.domElement.addEventListener('pointercancel', endDrag);
+function tapNeo() {
+  state = 'turning';
+  introEl.classList.add('gone');
+  navEl.classList.add('hide'); skipEl.classList.add('hide');
+  idle.reset().play();
+  walk.crossFadeTo(idle, 0.6, false);
+  turnFrom = neo.rotation.y;
+  const yaw = Math.atan2(camera.position.x - neo.position.x, camera.position.z - neo.position.z);
+  turnTo = turnFrom + Math.atan2(Math.sin(yaw - turnFrom), Math.cos(yaw - turnFrom)); // shortest way round
+  turnT = 0;
+}
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (drag) tear = Math.min(Math.max(drag.from + Math.hypot(e.clientX - drag.x, e.clientY - drag.y) / dragLen(), 0), 1);
+  if (e.pointerType === 'mouse') renderer.domElement.style.cursor =
+    state === 'walking' && pick(e) ? 'pointer' : state === 'ready' ? 'grab' : state === 'tearing' ? 'grabbing' : '';
+});
+
+function resize() {
+  const a = innerWidth / innerHeight;
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = a;
+  // Narrower oval on portrait phones, and pull back until its full width fits on screen
+  [rx, rz] = a < 1 ? [0.75, 0.35] : [1.3, 0.5];
+  const halfW = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * a;
+  const dist = Math.max(3.8, (rx + 0.45) / halfW);                     // pulled back: whole body in view all the way round
+  camera.position.set(0, dist * 0.42, dist);
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', () => {
+  resize();
+  if (walls) { layoutRoom(); world?.width(innerWidth).height(innerHeight); }
+});
+resize();
+
+const clock = new THREE.Clock();
+const tmp = new THREE.Vector3();
+const ease = (t) => t * t * (3 - 2 * t);
+
+// Ticket poses, recomputed every frame from the posed mesh
+const pose = () => ({ p: new THREE.Vector3(), q: new THREE.Quaternion() });
+const P = { pocket: pose(), out: pose(), zip: pose() };
+const qPocket = new THREE.Quaternion().setFromEuler(new THREE.Euler(POCKET_TILT, 0, Math.PI / 2)); // stub end up, top tilted forward
+const fwd = new THREE.Vector3(), top = new THREE.Vector3(), bot = new THREE.Vector3(), basis = new THREE.Matrix4();
+function updateSpots() {
+  neo.updateMatrixWorld(true);
+  const at = (i, v) => skinned.getVertexPosition(i, v).applyMatrix4(skinned.matrixWorld);
+  fwd.set(Math.sin(neo.rotation.y), 0, Math.cos(neo.rotation.y));
+  // start buried in the leg behind the pocket; 'out' is the arc's high point above the pocket
+  at(spots.pocket, P.out.p);
+  P.pocket.p.copy(P.out.p).add(tmp.set(0, -0.05, 0)).addScaledVector(fwd, -0.03);
+  P.out.p.add(tmp.set(0, 0.09, 0)).addScaledVector(fwd, 0.07);
+  P.pocket.q.copy(neo.quaternion).multiply(qPocket);
+  // Perforation (local Y) follows the seam as seen from the front; ticket faces straight out of his front
+  at(spots.top, top); at(spots.bot, bot);
+  const up = top.clone().sub(bot); up.addScaledVector(fwd, -up.dot(fwd)).normalize();
+  const side = up.clone().cross(fwd).normalize();
+  P.zip.q.setFromRotationMatrix(basis.makeBasis(side, up, fwd));
+  P.zip.p.copy(top).add(bot).multiplyScalar(0.5);
+  P.zip.p.addScaledVector(fwd, Math.max(top.dot(fwd), bot.dot(fwd)) - P.zip.p.dot(fwd) + FLY_GAP); // clear of the belt
+}
+function placeTicket(a, b, f) {
+  ticket.position.lerpVectors(a.p, b.p, f);
+  ticket.quaternion.slerpQuaternions(a.q, b.q, f);
+}
+// One continuous move: curve from inside the pocket, up over the arc point, down onto the seam
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+function pullTicket(u) {
+  const k = easeInOut(u), a = (1 - k) ** 2, b = 2 * (1 - k) * k, c = k * k;     // quadratic Bezier weights
+  ticket.position.set(0, 0, 0).addScaledVector(P.pocket.p, a).addScaledVector(P.out.p, b).addScaledVector(P.zip.p, c);
+  // keep it upright while it clears the pocket, then turn to face out as it travels
+  ticket.quaternion.slerpQuaternions(P.pocket.q, P.zip.q, easeInOut(Math.min(Math.max((u - 0.25) / 0.75, 0), 1)));
+}
+// Tear from the top down: both halves hinge at the bottom of the perforation, opening a V
+function tearTicket(p, o) {
+  const h = TICKET_H / 2;
+  const hinge = (m, a, dx, dy) => {
+    m.rotation.z = a;
+    m.position.set(-h * Math.sin(a) + dx, -h + h * Math.cos(a) + dy, 0);
+  };
+  hinge(ticket.userData.stub, -p * 0.5 - o * 1.4, o * 0.12, -o * 0.16);
+  hinge(ticket.userData.main, p * 0.18 + o * 0.9, -o * 0.1, -o * 0.14);
+  ticket.userData.stub.position.z = p * 0.004;                   // stub lifts toward you so the halves never z-fight
+}
+// Reveal: white lens from the top of the seam down; widens with the tear, then blooms to fill the screen
+function placeSlit(p, o) {
+  const flyLen = top.clone().sub(bot).addScaledVector(fwd, -top.clone().sub(bot).dot(fwd)).length();
+  slit.visible = p > 0.001;
+  slit.quaternion.copy(P.zip.q);
+  slit.position.copy(top).addScaledVector(fwd, P.zip.p.dot(fwd) - FLY_GAP * 0.5 - top.dot(fwd));
+  slit.position.addScaledVector(tmp.set(0, 1, 0).applyQuaternion(P.zip.q), o * o * 0.3); // bloom grows upward too
+  slit.scale.set(0.004 + p * 0.016 + o ** 3 * 3, Math.max(p * flyLen, 0.001) + o * o * 1.2, 1);
+}
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  floorMat.uniforms.uTime.value = t;
+
+  if (neo) {
+    if (state === 'walking') {
+      // constant ground speed on the ellipse: advance the angle by distance / path length per radian here
+      const tx = -rx * Math.sin(angle), tz = rz * Math.cos(angle);
+      angle += (WALK_SPEED / Math.hypot(tx, tz)) * dt;
+      neo.position.set(Math.cos(angle) * rx, 0, Math.sin(angle) * rz);
+      neo.rotation.y = Math.atan2(-rx * Math.sin(angle), rz * Math.cos(angle)); // face along the path
+    } else if (state === 'turning') {
+      turnT = Math.min(turnT + dt / 0.9, 1);
+      neo.rotation.y = turnFrom + (turnTo - turnFrom) * ease(turnT);
+      if (turnT === 1) { state = 'zooming'; zoomS = 0; camFrom.copy(camera.position); lookFrom.copy(lookAt); }
+    }
+    mixer.update(dt);
+
+    // One ripple per footstep: fire when the walk clip's time passes a foot plant (handles the loop wrap)
+    const wt = walk.time;
+    if (state === 'walking') for (const { t: pt, side } of FOOT_PLANTS) {
+      if (walkPrev <= wt ? pt > walkPrev && pt <= wt : pt > walkPrev || pt <= wt) {
+        feet[side].getWorldPosition(tmp);
+        addRipple(tmp.x, tmp.z, t);
+      }
+    }
+    walkPrev = wt;
+    updateSpots();
+    ticket.visible = state === 'zooming' ? zoomS > 1.2 : state !== 'walking' && state !== 'turning'; // hidden in the pocket until needed
+    if (state === 'walking' || state === 'turning') placeTicket(P.pocket, P.pocket, 0);
+    else {
+      // Close-up on the seam: ticket fills ~60% of the screen width
+      const halfW = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
+      const camTo = P.zip.p.clone().addScaledVector(fwd, TICKET_W / 0.6 / 2 / halfW);
+      if (state === 'zooming') {
+        zoomS += dt;
+        const k = ease(Math.min(zoomS / 3.2, 1));                // slow camera push-in
+        camera.position.lerpVectors(camFrom, camTo, k);
+        lookAt.lerpVectors(lookFrom, P.zip.p, k);
+        pullTicket(Math.min(Math.max((zoomS - 1.2) / 2.6, 0), 1)); // 1.2 s → 3.8 s: out of the pocket onto the seam
+        if (zoomS >= 3.8) { state = 'ready'; loadGlobe().catch(() => {}); } // waiting for the tear; prefetch the globe
+      } else {
+        if (state === 'ready') tear += (0 - tear) * (1 - Math.exp(-dt * 8));   // let go early → springs back
+        if (state === 'opening') {
+          tear = Math.min(tear + dt * 3, 1);
+          opening = Math.min(opening + dt / 1.8, 1);
+          if (opening === 1) { state = 'white'; enterRoom(); } // → beat 7, the white room
+        }
+        placeTicket(P.zip, P.zip, 0);
+        tearTicket(tear, ease(opening));
+        placeSlit(tear, opening);
+        camera.position.copy(camTo).addScaledVector(fwd, -camTo.clone().sub(P.zip.p).length() * 0.85 * ease(opening)); // push into the light
+        lookAt.copy(P.zip.p);
+        if (state !== 'white') whiteEl.style.opacity = Math.min(Math.max((opening - 0.55) / 0.45, 0), 1);
+        hintEl.classList.toggle('on', state === 'ready' && tear < 0.05);
+      }
+    }
+  }
+  camera.lookAt(lookAt);
+  renderer.render(scene, camera);
+});

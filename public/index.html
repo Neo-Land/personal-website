@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nehemias — Portfolio</title>
+<!-- EDIT: these show in Google results and in link previews (LinkedIn, iMessage, Slack…) -->
+<meta name="description" content="Nehemias — developer portfolio. Projects, experience and contact.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Nehemias — Portfolio">
+<meta property="og:description" content="Projects, experience and contact. Walk in and take a look.">
+<!-- <meta property="og:url" content="https://YOUR-DOMAIN.com/"> -->
+<!-- <meta property="og:image" content="https://YOUR-DOMAIN.com/preview.jpg"> 1200×630 screenshot -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000'/%3E%3Ctext x='32' y='44' font-family='Menlo,monospace' font-size='36' font-weight='700' fill='%23e6ecf5' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/build/three.module.js",
+  "three/addons/": "./vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="white"></div>
+<div id="room" hidden>
+  <div id="float"><div id="bob"><div id="aura"></div><div id="globe"></div></div></div>
+  <aside id="card" hidden aria-live="polite">
+    <button class="x" aria-label="Close">×</button>
+    <small id="c-country"></small>
+    <h2 id="c-name"></h2>
+    <p id="c-note"></p>
+  </aside>
+  <p class="tip">Spin the globe · pick a pin</p>
+</div>
+<div id="hint" role="status">Pull to tear ↓</div>
+<div id="intro" aria-hidden="true"></div>
+<nav id="nav" aria-label="Portfolio">
+  <button class="ui" data-open="work">Work</button>
+  <button class="ui" data-open="about">About</button>
+  <button class="ui" data-open="contact">Contact</button>
+</nav>
+<button id="skip" class="ui">Skip intro →</button>
+<dialog id="folio" aria-label="Portfolio">
+  <div class="top">
+    <button class="ui" data-go="about">About</button>
+    <button class="ui" data-go="work">Work</button>
+    <button class="ui" data-go="contact">Contact</button>
+    <button class="ui x" aria-label="Close" data-close autofocus>×</button>
+  </div>
+  <section id="about">
+    <h2>About</h2>
+    <h1 id="f-name"></h1>
+    <div class="role" id="f-role"></div>
+    <div id="f-bio"></div>
+    <ul class="chips" id="f-skills"></ul>
+  </section>
+  <section id="work"><h2>Selected work</h2><div class="cards" id="f-projects"></div></section>
+  <section id="contact"><h2>Contact</h2><p id="f-cta"></p><div class="contact" id="f-links"></div></section>
+  <footer id="f-foot"></footer>
+</dialog>
+<p class="sr">Welcome, friend. This is Nehemias.</p>
+<script type="module" src="app.js"></script>
+</body>
+</html>

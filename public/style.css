@@ -1,0 +1,106 @@
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; touch-action: none; }
+  #white { position: fixed; inset: 0; z-index: 3; background: #fff; opacity: 0; pointer-events: none; }
+
+  /* ── Loft room: the 3D loft renders on the canvas; the globe floats over it ── */
+  #room { position: fixed; inset: 0; z-index: 2; overflow: hidden; color: #151a22;
+    font: 400 16px/1.5 system-ui, -apple-system, sans-serif; }
+  #room[hidden] { display: none; }
+  /* #float is moved (in JS) so its centre sits on the spot above Neo's head */
+  #float { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s .3s; }
+  #room.in #float { opacity: 1; }
+  #bob { position: absolute; inset: 0; animation: bob 6s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-10px); } }
+  #globe { position: absolute; inset: 0; }
+  /* glowing blue aura behind the globe; --gd = globe diameter in px */
+  #aura { position: absolute; left: 50%; top: 50%; width: calc(var(--gd, 300px) * 2.3); aspect-ratio: 1; pointer-events: none;
+    transform: translate(-50%, -50%); border-radius: 50%; mix-blend-mode: screen;
+    background: radial-gradient(closest-side, rgba(120, 180, 255, .75) 38%, rgba(60, 130, 255, .38) 55%, rgba(40, 100, 255, .12) 75%, transparent);
+    animation: pulse 4s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform: translate(-50%, -50%) scale(1.07); opacity: .8; } }
+  .pin { width: 26px; height: 26px; padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto;
+    display: grid; place-items: center; transform: translateY(-2px); transition: opacity .3s; }
+  .pin::before { content: ""; width: 13px; height: 13px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ff9a78, #ff6a3d 45%, #b53a17); box-shadow: 0 2px 4px rgba(20, 30, 60, .35);
+    transition: transform .2s; }
+  .pin:hover::before, .pin:focus-visible::before, .pin.on::before { transform: scale(1.4); }
+  .pin:focus-visible { outline: 2px solid #2743d6; outline-offset: 2px; border-radius: 50%; }
+  #card { position: absolute; left: 24px; bottom: 24px; width: min(340px, calc(100vw - 32px)); padding: 20px 22px;
+    background: #fff; border-radius: 14px; box-shadow: 0 24px 50px rgba(20, 30, 60, .18), 0 0 0 1px rgba(20, 30, 60, .06); }
+  #card small { color: #6b6f78; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; }
+  #card h2 { margin: 2px 0 8px; font-size: 32px; line-height: 1.05; font-weight: 800; letter-spacing: -.01em; }
+  #card p { margin: 0; }
+  #card .x { position: absolute; top: 8px; right: 10px; width: 36px; height: 36px; border: 0; background: none;
+    font: 24px/1 system-ui; color: #6b6f78; cursor: pointer; }
+  #room .tip { position: absolute; left: 0; right: 0; bottom: max(24px, env(safe-area-inset-bottom)); margin: 0; text-align: center;
+    color: rgba(240, 244, 250, .85); text-shadow: 0 1px 4px rgba(0, 0, 0, .6); font-size: 13px; letter-spacing: .2em; text-transform: uppercase; opacity: 0; transition: opacity 1s 1.4s; pointer-events: none; }
+  #room.in .tip { opacity: 1; }
+  #room.picked .tip { opacity: 0; transition-delay: 0s; }
+  @media (max-width: 700px) { #card { left: 16px; right: 16px; width: auto; bottom: 16px; } }
+  @media (prefers-reduced-motion: reduce) { #bob, #aura { animation: none; } #float { transition: opacity .6s; } }
+  /* typed greeting, top right of the opening screen */
+  #intro { position: fixed; top: max(24px, env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); z-index: 1;
+    max-width: calc(100vw - 44px); color: rgba(236, 240, 248, .94); pointer-events: none; transition: opacity .8s;
+    font: 500 clamp(19px, 3.4vw, 36px)/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .02em;
+    animation: fadein 1.2s ease-out both; }
+  #intro i { font-style: normal; animation: fadein .45s ease-out both; }   /* each typed letter fades in */
+  @keyframes fadein { from { opacity: 0; } }
+  #intro.gone { opacity: 0; }
+  #intro .caret { display: inline-block; width: .55em; height: 1.05em; margin-left: 2px; vertical-align: -.15em;
+    background: rgba(236, 240, 248, .85); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+  /* ── Portfolio layer: menu, skip link, panel ─────────────────── */
+  #nav { position: fixed; top: max(22px, env(safe-area-inset-top)); right: max(18px, env(safe-area-inset-right)); z-index: 4;
+    display: flex; gap: 4px; transition: opacity .6s; }
+  #nav.hide { opacity: 0; pointer-events: none; }
+  .ui { font: 500 13px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase;
+    color: rgba(236, 240, 248, .82); background: none; border: 0; padding: 10px 10px; cursor: pointer; border-radius: 6px; text-decoration: none; }
+  .ui:hover, .ui:focus-visible { color: #fff; background: rgba(255, 255, 255, .08); outline: none; }
+  #skip { position: fixed; right: max(18px, env(safe-area-inset-right)); bottom: max(22px, env(safe-area-inset-bottom)); z-index: 4;
+    transition: opacity .6s; }
+  #skip.hide { opacity: 0; pointer-events: none; }
+  #folio { width: min(760px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0 0 0 auto; padding: 0; border: 0;
+    color: #e6ecf5; background: rgba(12, 13, 18, .9); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: -30px 0 60px rgba(0, 0, 0, .45); font: 400 16px/1.6 system-ui, -apple-system, sans-serif; }
+  #folio[open] { animation: slidein .45s cubic-bezier(.2, .7, .2, 1); }
+  @keyframes slidein { from { transform: translateX(40px); opacity: 0; } }
+  #folio::backdrop { background: rgba(0, 0, 0, .35); }
+  #folio .top { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 4px; padding: 14px 18px;
+    background: rgba(12, 13, 18, .92); border-bottom: 1px solid rgba(255, 255, 255, .07); }
+  #folio .top .x { margin-left: auto; font-size: 22px; letter-spacing: 0; }
+  #folio section { padding: 34px 28px 10px; scroll-margin-top: 64px; }
+  #folio h2 { margin: 0 0 18px; font: 600 13px/1 ui-monospace, Menlo, monospace; letter-spacing: .22em; text-transform: uppercase; color: #8fa3c4; }
+  #folio h1 { margin: 0; font-size: clamp(30px, 6vw, 44px); line-height: 1.05; letter-spacing: -.02em; }
+  #folio .role { margin: 8px 0 18px; color: #9fb0cc; font-size: 18px; }
+  #folio p { margin: 0 0 14px; color: #c9d3e3; max-width: 60ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+  .chips li { padding: 5px 11px; border-radius: 999px; font: 500 12px/1.4 ui-monospace, Menlo, monospace; color: #cfe0ff;
+    background: rgba(77, 141, 255, .12); border: 1px solid rgba(77, 141, 255, .25); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .card { display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .08); transition: transform .25s, border-color .25s; }
+  .card:hover { transform: translateY(-3px); border-color: rgba(77, 141, 255, .45); }
+  .card img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #1a1d26; display: block; }
+  .card .body { padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .card h3 { margin: 0; font-size: 18px; }
+  .card p { margin: 0; font-size: 14.5px; }
+  .card .chips { margin: 4px 0 0; }
+  .card .links { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
+  .card .links a { font-size: 12px; padding: 8px 10px; border: 1px solid rgba(255, 255, 255, .14); }
+  .contact { display: flex; flex-wrap: wrap; gap: 10px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 10px; text-decoration: none;
+    font: 600 15px/1 system-ui, sans-serif; color: #e6ecf5; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12); }
+  .btn:hover, .btn:focus-visible { background: rgba(77, 141, 255, .18); border-color: rgba(77, 141, 255, .5); outline: none; }
+  .btn.primary { background: #4d8dff; border-color: #4d8dff; color: #fff; }
+  #folio footer { padding: 30px 28px 40px; color: #6f7c93; font-size: 13px; }
+  @media (max-width: 560px) { #folio section { padding: 28px 18px 6px; } #nav .ui { padding: 9px 7px; letter-spacing: .08em; }
+    #intro { top: calc(max(22px, env(safe-area-inset-top)) + 46px); } }   /* phones: greeting sits under the menu */
+  @media (prefers-reduced-motion: reduce) { #folio[open] { animation: none; } .card:hover { transform: none; } }
+  #hint { position: fixed; left: 0; right: 0; bottom: max(28px, env(safe-area-inset-bottom)); text-align: center;
+    color: rgba(255, 255, 255, .75); font: 500 13px/1 system-ui, -apple-system, sans-serif; letter-spacing: .28em;
+    text-transform: uppercase; opacity: 0; transition: opacity .6s; pointer-events: none; }
+  #hint.on { opacity: 1; animation: nudge 1.6s ease-in-out infinite; }
+  @keyframes nudge { 50% { transform: translateY(6px); } }
+  @media (prefers-reduced-motion: reduce) { #hint.on, #intro, #intro i { animation: none; } }

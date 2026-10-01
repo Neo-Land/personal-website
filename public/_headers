@@ -1,0 +1,15 @@
+# Cloudflare Pages response headers (https://developers.cloudflare.com/pages/configuration/headers/)
+# The importmap hash in script-src must be updated if the <script type="importmap"> block in index.html changes.
+# style-src allows inline styles only because globe.gl injects its own CSS at runtime; scripts stay 'self' + hash.
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'sha256-CCG8uL4+eqdnWv58X0gtyivUPcLdZu8ZGPw2D0nV94Q='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; worker-src 'self' blob:; font-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=(), magnetometer=(), gyroscope=(), accelerometer=(), interest-cohort=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -130,3 +130,7 @@ FLOW COMPLETE through beat 7. Possible next: real PLACES, pin detail pages, soft
   og:image commented until the domain is live), inline SVG "N" favicon. Phones: greeting moves under the menu.
 Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe page, archive it), host static
   (GitHub Pages / Netlify / Cloudflare Pages), point the domain, then fill og:url/og:image.
+## Repo (2026-09-30)
+  Private GitHub repo https://github.com/Neo-Land/personal-website (branch main). README.md = public-facing
+  overview + pipeline + lessons; this file = dev log. .gitignore keeps neo.blend(.blend1) (75 MB), neo_raw/
+  (61 MB) and failed Mixamo uploads out (no Git LFS). Screenshots in docs/.

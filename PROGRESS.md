@@ -158,3 +158,7 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   pin card → Work panel) with no console errors. Cloudflare tried to inject its Web Analytics beacon; CSP blocked it.
   User TODO in dashboard: Always Use HTTPS (http currently 200), turn off Web Analytics/RUM auto-injection, DNSSEC
   (+ DS record at Namecheap), GitHub + Namecheap 2FA.
+  Dashboard hardening done (2026-10-01): Always Use HTTPS ON (http → 301 https, apex + www); Minimum TLS 1.2
+  (1.0/1.1 refused by server, 1.2 + 1.3 accepted, ECDHE-AES-GCM); DNSSEC ON — DS 2371 13 2 27C4CA69… at the
+  .com registry, Google DNS returns 'ad'; HSTS left to our own header (not the dashboard toggle). Cert SAN covers
+  apex + www. Dashboard "pending"/"not covered by certificate" labels were stale — live checks all pass.

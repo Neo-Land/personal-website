@@ -6,5 +6,10 @@
   "compatibility_date": "2026-09-30",
   "assets": {
     "directory": "./public"
-  }
+  },
+  // Attach the site to the domain; Cloudflare creates the DNS records and HTTPS certificate.
+  "routes": [
+    { "pattern": "nehemiaslandaverde.com", "custom_domain": true },
+    { "pattern": "www.nehemiaslandaverde.com", "custom_domain": true }
+  ]
 }

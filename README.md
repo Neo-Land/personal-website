@@ -41,7 +41,8 @@ Everything recruiters read lives in the `SITE` object near the top of the module
 | `public/index.html`, `style.css`, `app.js` | Markup, styles, and all scene/interaction code (three.js scenes, ticket, tear, loft, globe, portfolio panel) |
 | `public/neo.glb` | Neo — 48.7k-face textured mesh, 41-bone Mixamo rig, animations `neo_slow_walk`, `neo_idle`, `neo_sit` |
 | `public/vendor/` | Self-hosted, pinned three.js 0.170.0, globe.gl 2.46.2, earth textures (+ `LICENSES.txt`) |
-| `public/_headers` | Security headers for Cloudflare Pages (CSP, HSTS, no framing, permissions lockdown) |
+| `public/_headers` | Security headers (CSP, HSTS, no framing, permissions lockdown), applied by Cloudflare |
+| `wrangler.jsonc` | Cloudflare Workers config: serve `public/` as static assets (no server code) |
 | `neo_rawv2/` | Tripo export the character was built from (FBX + PBR textures) |
 | `neo_rigged.fbx` | Mixamo auto-rig of that mesh |
 | `neo_slow_walk.fbx`, `neo_idle.fbx`, `neo_sit.fbx` | Mixamo animations (downloaded **With Skin**) |
@@ -88,6 +89,6 @@ To version them later: `brew install git-lfs && git lfs install && git lfs track
 ## Roadmap
 
 - [ ] Fill in `SITE` (bio, projects, links, résumé) and `PLACES`
-- [ ] Deploy `public/` on Cloudflare Pages and point the domain
+- [ ] Deploy `public/` on Cloudflare (Workers static assets, Git-connected) at nehemiaslandaverde.com
 - [ ] Add `og:url` / `og:image` (1200×630 screenshot) for link previews
 - [ ] Optional: Draco-compress `neo.glb` for faster first load

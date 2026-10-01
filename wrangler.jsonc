@@ -1,0 +1,10 @@
+// Cloudflare Workers config: serves the static site in public/ (no server code).
+// public/_headers (CSP, HSTS, …) is applied to every response.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "personal-website",
+  "compatibility_date": "2026-09-30",
+  "assets": {
+    "directory": "./public"
+  }
+}

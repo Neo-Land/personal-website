@@ -147,3 +147,7 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   Domain: nehemiaslandaverde.com (Namecheap) → Cloudflare nameservers + Pages custom domain (user does account steps).
   index.html: canonical + og:url/og:image (public/preview.jpg 1200×630 from the loft screenshot), name "Nehemias
   Landaverde" (from the domain — confirm with user). robots.txt + sitemap.xml added.
+  Cloudflare: zone nehemiaslandaverde.com ACTIVE (NS dawn/kaiser.ns.cloudflare.com, Free plan, imported Namecheap
+  parking/email records deleted, AI training bots blocked, search + agents allowed). Hosting via the new Workers
+  static-assets flow (Pages is "legacy" in the dashboard): wrangler.jsonc → assets.directory ./public, no script;
+  _headers applies. Validated with `npx wrangler deploy --dry-run`.

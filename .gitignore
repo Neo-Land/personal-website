@@ -1,0 +1,14 @@
+# Too large for a plain GitHub repo (no Git LFS) — kept locally; see README "Large files"
+*.blend
+*.blend1
+neo_raw/
+
+# Throwaway Mixamo upload attempts (the working one was rebuilt from neo_rawv2)
+neo_mixamo.fbx
+neo_mixamo.zip
+neo_mixamo_obj/
+neo_mixamo_plain.obj
+
+# Local tooling / OS
+.claude/
+.DS_Store

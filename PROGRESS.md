@@ -144,3 +144,6 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   Verified locally with a header-enforcing server (.claude/launch.json "site-strict" on :8010): full flow + loft/globe,
   zero external requests. Bug found+fixed during split: globe loader onload handler had been commented out.
   Hosting plan: Cloudflare Pages, Git-connected to the private repo, build output dir = public, no build command.
+  Domain: nehemiaslandaverde.com (Namecheap) → Cloudflare nameservers + Pages custom domain (user does account steps).
+  index.html: canonical + og:url/og:image (public/preview.jpg 1200×630 from the loft screenshot), name "Nehemias
+  Landaverde" (from the domain — confirm with user). robots.txt + sitemap.xml added.

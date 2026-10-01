@@ -142,7 +142,7 @@ const whiteEl = document.getElementById('white'), hintEl = document.getElementBy
 
 // ══ YOUR CONTENT — edit everything in SITE; the panel is built from it ═══════════════════
 const SITE = {
-  name: 'Nehemias',                                   // TODO: full name
+  name: 'Nehemias Landaverde',
   role: 'Software Developer · City, State',           // TODO: what you do · where
   bio: [                                              // TODO: 2–3 short paragraphs, first person
     'TODO — one or two sentences on what you build and what you care about.',

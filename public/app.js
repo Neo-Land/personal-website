@@ -143,23 +143,27 @@ const whiteEl = document.getElementById('white'), hintEl = document.getElementBy
 // ══ YOUR CONTENT — edit everything in SITE; the panel is built from it ═══════════════════
 const SITE = {
   name: 'Nehemias Landaverde',
-  role: 'Software Developer · City, State',           // TODO: what you do · where
-  bio: [                                              // TODO: 2–3 short paragraphs, first person
-    'TODO — one or two sentences on what you build and what you care about.',
-    'TODO — what you are looking for next (role, team, kind of problems).',
+  role: 'Computer Science Student · Montclair State University · NJ',
+  bio: [
+    'I’m a CS undergrad at Montclair State University (GPA 3.66) who likes building things people can actually click on — full-stack web apps, interactive 3D, and the security and testing that make them hold up.',
+    'This summer I joined Podium Education’s Global Career Accelerator (Web Development track), shipping deadline-driven front-end projects from wireframe to deployment and earning certifications with Intel, L’Oréal, OpenAI and UNESCO. I’m also the founding tech lead bringing a ColorStack chapter to Montclair State, and since 2023 I’ve led shifts as a lifeguard and swim instructor for the City of Union City.',
+    'Bilingual in English and Spanish, intermediate Italian (NJ Seal of Biliteracy in both). Looking for software engineering internships and early-career roles.',
   ],
-  skills: ['TODO', 'JavaScript', 'three.js', 'Blender'],   // TODO: your real stack
-  projects: [                                         // TODO: 3–6 best projects, strongest first
-    { title: 'This website', blurb: 'An interactive 3D portfolio: a rigged character, a tear-to-reveal transition, and a lit loft with a pinned globe. Built with three.js, Blender and Mixamo.',
-      tags: ['three.js', 'WebGL', 'Blender'], live: '', code: '', image: '' },
-    { title: 'TODO Project', blurb: 'TODO — the problem, what you built, and one result (users, speed-up, award…).',
-      tags: ['TODO'], live: '', code: '', image: '' },
+  skills: ['TypeScript', 'JavaScript', 'React', 'Next.js', 'Python', 'Java', 'SQL', 'PostgreSQL', 'Supabase',
+    'Tailwind CSS', 'three.js', 'Pixi.js', 'Zod', 'Vitest', 'Playwright', 'Git', 'Cloudflare', 'Vercel', 'Blender'],
+  projects: [                                         // strongest first
+    { title: 'Gamify.Life', blurb: 'A full-stack app that turns real-life hobbies into an RPG: 121 skills across 10 hobbies as prerequisite graphs, an XP ledger, quests and achievements, inside a retro desktop-OS interface. Server-authoritative progression validated with Zod and committed with Postgres advisory locks, row-level security, and 125+ Vitest/Playwright tests with axe accessibility checks.',
+      tags: ['Next.js', 'TypeScript', 'Supabase', 'PostgreSQL', 'Pixi.js'], live: 'https://gamify-life-amber.vercel.app', code: 'https://github.com/Neo-Land/Gamify-Life', image: '' },
+    { title: 'This website', blurb: 'An interactive three.js portfolio: a rigged 3D character, a drag-to-tear boarding pass, and a shadow-lit loft with a pinned globe. Character pipeline from AI image-to-3D (Tripo) through Mixamo rigging and Blender cleanup. Static on Cloudflare with self-hosted dependencies, a strict CSP, HSTS and no trackers.',
+      tags: ['three.js', 'WebGL', 'Blender', 'Cloudflare'], live: '', code: '', image: '' },
+    { title: 'ColorStack @ Montclair State', blurb: 'Chapter website and recognition proposal for a new ColorStack chapter, growing the pipeline of Black and Latinx students in computing on campus.',
+      tags: ['Web', 'Leadership'], live: '', code: 'https://github.com/Neo-Land/colorstack-msu', image: '' },
   ],
-  email: '',                                          // TODO: you@yourdomain.com
-  linkedin: '',                                       // TODO: https://www.linkedin.com/in/…
-  github: '',                                         // TODO: https://github.com/…
-  resume: '',                                         // TODO: e.g. 'resume.pdf' (put the PDF next to this file)
-  cta: 'Open to new roles and collaborations — the fastest way to reach me is email.',
+  email: 'nehe.landav@gmail.com',
+  linkedin: 'https://www.linkedin.com/in/nehemiaslandaverde/',
+  github: 'https://github.com/Neo-Land',
+  resume: 'resume.pdf',                               // phone-free copy of the résumé
+  cta: 'Open to internships and early-career software roles — the fastest way to reach me is email.',
 };
 // ═══════════════════════════════════════════════════════════════════════════════════════
 

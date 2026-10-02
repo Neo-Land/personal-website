@@ -228,3 +228,7 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   (-0.92, 0.4), nook pushed back to z -2.1. Sections can define eye() — on phones the Hobbies camera comes in high
   (2.1) and from straight in front (5.2 back) so the seated Neo doesn't block it and all three fit the narrow screen.
   "AS YOU WISH!" now hangs above the swordsman's head (no overlap with "SMOKIN'!"). Mask scaled 0.21 → 0.16.
+## Start prompt + signs kept on screen (2026-10-02)
+  "Click Neo to begin" (or "Tap…" on touch screens, via hover:none) fades in 1.8 s after Neo starts walking and is
+  removed on tap/skip (#start, styled like #hint, a bit larger). Section signs are clamped so their top never goes
+  above 64 px (the menu) — on wide MacBook screens "About me!" used to be cut off at the top.

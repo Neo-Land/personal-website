@@ -125,9 +125,10 @@
   @media (max-width: 560px) { #folio section { padding: 28px 18px 6px; } #nav .ui { padding: 9px 7px; letter-spacing: .08em; }
     #intro { top: calc(max(22px, env(safe-area-inset-top)) + 46px); } }   /* phones: greeting sits under the menu */
   @media (prefers-reduced-motion: reduce) { #folio[open] { animation: none; } .card:hover { transform: none; } }
-  #hint { position: fixed; left: 0; right: 0; bottom: max(28px, env(safe-area-inset-bottom)); text-align: center;
+  #hint, #start { position: fixed; left: 0; right: 0; bottom: max(28px, env(safe-area-inset-bottom)); text-align: center;
     color: rgba(255, 255, 255, .75); font: 500 13px/1 system-ui, -apple-system, sans-serif; letter-spacing: .28em;
     text-transform: uppercase; opacity: 0; transition: opacity .6s; pointer-events: none; }
-  #hint.on { opacity: 1; animation: nudge 1.6s ease-in-out infinite; }
+  #start { font-size: 15px; color: #fff; }
+  #hint.on, #start.on { opacity: 1; animation: nudge 1.6s ease-in-out infinite; }
   @keyframes nudge { 50% { transform: translateY(6px); } }
-  @media (prefers-reduced-motion: reduce) { #hint.on, #intro, #intro i { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { #hint.on, #start.on, #intro, #intro i { animation: none; } }

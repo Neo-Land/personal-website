@@ -139,6 +139,8 @@ function makeSlit() {
 let neo, mixer, walk, idle, hit, ticket, slit, skinned, spots, neoClips;
 let tear = 0, opening = 0, drag = null;    // tear 0→1 follows the drag; opening 0→1 is the bloom into white
 const whiteEl = document.getElementById('white'), hintEl = document.getElementById('hint');
+const startEl = document.getElementById('start');                 // "click Neo to begin", shown once he's walking
+startEl.textContent = matchMedia('(hover: none)').matches ? 'Tap Neo to begin' : 'Click Neo to begin';
 
 // ══ YOUR CONTENT — edit everything in SITE; the panel is built from it ═══════════════════
 const SITE = {
@@ -204,6 +206,7 @@ folio.addEventListener('click', (e) => { if (e.target === folio) folio.close(); 
 let skipWanted = false;
 skipEl.onclick = () => skipIntro();
 function skipIntro() {                     // straight to the loft (for visitors in a hurry)
+  startEl.remove();
   if (!neo) { skipWanted = true; skipEl.textContent = 'Loading…'; return; }
   if (state === 'opening' || state === 'white') return;
   state = 'white'; drag = null;
@@ -654,7 +657,8 @@ function updateLoftView(dt) {
   for (const s of [...SECTIONS, ...DECOR]) {                            // signs follow their spot on screen
     if (!s.el) continue;
     const v = s.signAt().project(loftCam);
-    s.el.style.transform = `translate(${(v.x + 1) / 2 * innerWidth}px, ${(1 - v.y) / 2 * innerHeight}px) translate(-50%, -100%)`;
+    const y = Math.max((1 - v.y) / 2 * innerHeight, s.el.offsetHeight + 64);      // never above the top menu
+    s.el.style.transform = `translate(${(v.x + 1) / 2 * innerWidth}px, ${y}px) translate(-50%, -100%)`;
     s.el.hidden = v.z > 1 || (s.section ? focus !== s.section : focus && focus !== s.id);
   }
 }
@@ -822,6 +826,7 @@ new GLTFLoader().load('neo.glb', (gltf) => {
   hit.position.y = 0.52;
   neo.add(hit);
   if (skipWanted) skipIntro();
+  else setTimeout(() => state === 'walking' && startEl.classList.add('on'), 1800);
 });
 
 // Tap / click on Neo → stop, face camera, idle
@@ -854,6 +859,7 @@ function endDrag() {
 renderer.domElement.addEventListener('pointerup', endDrag);
 renderer.domElement.addEventListener('pointercancel', endDrag);
 function tapNeo() {
+  startEl.remove();
   state = 'turning';
   introEl.classList.add('gone');
   navEl.classList.add('hide'); skipEl.classList.add('hide');

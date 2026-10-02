@@ -12,3 +12,9 @@ neo_mixamo_plain.obj
 # Local tooling / OS
 .claude/
 .DS_Store
+
+# Raw Tripo download for the mechanic outfit
+mechanic_raw/
+
+# Raw Tripo download for the car
+car_raw/

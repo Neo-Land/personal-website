@@ -277,10 +277,10 @@ const loadGlobe = () => globeLib ??= new Promise((ok, fail) => {
 // shadows; dim warm ambient; the globe's blue glow is the cool contrast.
 const GLOBE_R = 0.33, GLOBE_AT = new THREE.Vector3(0, 0.95, 0);  // globe size + centre in the room (Neo's head tops out at 0.45)
 const loft = new THREE.Scene(), loftCam = new THREE.PerspectiveCamera(45, 1, 0.05, 40);
-const BACK = -2, CEIL = 3, WIN_TOP = 2.45, SILL = 0.12;
-const BAYS = [[-1.9, -1.1], [-0.9, -0.1], [0.1, 0.9]];            // window z-ranges on the right wall; brick piers between
+const BACK = -3.4, CEIL = 3, WIN_TOP = 2.45, SILL = 0.12;
+const BAYS = [[-2.9, -2.1], [-1.9, -1.1], [-0.9, -0.1], [0.1, 0.9]];            // window z-ranges on the right wall; brick piers between
 const BRICK_TILE = 1.7;                                          // metres per brick texture tile (bigger = larger bricks)
-let roomHalf = 1.9, walls;
+let roomHalf = 2.8, walls;
 
 function canvasTex(w, h, draw, color = true) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
@@ -442,7 +442,7 @@ function buildLoft() {
   const add = (m, x, y, z) => { m.position.set(x, y, z); right.add(m); };
   add(box(T, SILL, L, brickMat, BRICK_TILE), T / 2, SILL / 2, zc);
   add(box(T, CEIL - WIN_TOP, L, brickMat, BRICK_TILE), T / 2, (WIN_TOP + CEIL) / 2, zc);
-  const piers = [[BACK, BAYS[0][0]], ...BAYS.slice(1).map((b, i) => [BAYS[i][1], b[0]]), [BAYS[2][1], BACK + L]];
+  const piers = [[BACK, BAYS[0][0]], ...BAYS.slice(1).map((b, i) => [BAYS[i][1], b[0]]), [BAYS.at(-1)[1], BACK + L]];
   for (const [z0, z1] of piers) add(box(T + 0.06, WIN_TOP - SILL, z1 - z0, brickMat, BRICK_TILE), T / 2 - 0.03, (SILL + WIN_TOP) / 2, (z0 + z1) / 2);
   const grid = new THREE.MeshStandardMaterial({ map: mullionTex(3, 6), color: 0x0d0e10, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.6 });
   for (const [z0, z1] of BAYS) {
@@ -453,13 +453,19 @@ function buildLoft() {
   const sky = new THREE.Mesh(new THREE.PlaneGeometry(16, 8), new THREE.MeshBasicMaterial({ map: skyTex(), toneMapped: false }));
   sky.rotation.y = -Math.PI / 2;
   add(sky, 4, 2.4, -0.5);
-  walls = { left, right, back, floor, ceiling };
+  walls = { left, right, back, floor, ceiling, car: new THREE.Group() };
+  loft.add(walls.car);
   loft.add(right);
 
   // Lighting: moody and warm
   const pmrem = new THREE.PMREMGenerator(renderer);
   loft.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;  // soft reflections so the floor reads glossy
   loft.environmentIntensity = 0.16;
+  loadCarCorner(walls.car);
+  // invisible click targets for the sections (generous, so they're easy to hit on phones)
+  const hotspot = (geo) => new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ visible: false }));
+  walls.globeHit = hotspot(new THREE.SphereGeometry(GLOBE_R * 1.3)); walls.globeHit.position.copy(GLOBE_AT); loft.add(walls.globeHit);
+  walls.carHit = hotspot(new THREE.BoxGeometry(1.4, 1.2, 3.4)); walls.carHit.position.set(0, 0.6, 0.2); walls.car.add(walls.carHit);
   loft.add(new THREE.HemisphereLight(0xffc896, 0x140c08, 0.35));
   const fill = new THREE.DirectionalLight(0xffa860, 0.4);                  // faint warm front fill so Neo isn't a silhouette
   fill.position.set(-1.5, 2, 4);
@@ -473,17 +479,47 @@ function buildLoft() {
   glow.position.copy(GLOBE_AT);
   loft.add(glow);
 }
+// The car corner: a Tripo coupe (cabin flattened in Blender, hood up) with mechanic Neo bent over the engine
+// turning a wrench (keyframed in Blender on Neo's skeleton). Loaded after the loft is up so entering never waits.
+const CAR_SCALE = 2.45;                                           // car.glb is modelled ~1 m long; Neo is ~1 unit tall
+const MECH_AT = [-0.15, 0, 1.42];                                // at the front bumper, leaning into the open engine bay
+let mechMixer;
+function loadCarCorner(group) {
+  const loader = new GLTFLoader();
+  loader.load('car.glb', (g) => {
+    g.scene.scale.setScalar(CAR_SCALE);
+    g.scene.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.material.envMap = loft.environment; o.material.envMapIntensity = 0.5; } });
+    group.add(g.scene);
+  });
+  loader.load('mechanic.glb', (g) => {
+    const mech = g.scene;
+    mech.position.set(...MECH_AT); mech.rotation.y = Math.PI;        // facing the car
+    mech.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+    group.add(mech);
+    mechMixer = new THREE.AnimationMixer(mech);
+    mechMixer.clipAction(g.animations[0]).play();
+  });
+}
 // Room width + camera adapt to the screen; places the walls and the globe overlay
 function layoutRoom() {
   const a = innerWidth / innerHeight, t = Math.tan(THREE.MathUtils.degToRad(loftCam.fov / 2));
-  roomHalf = a < 1 ? 1.25 : 1.9;                                        // narrower loft on phones so the windows stay in view
+  roomHalf = a < 1 ? 1.6 : 2.8;                                        // narrower loft on phones so the windows stay in view
   const d = Math.max(3, (roomHalf + 0.05) / (t * a) - 0.7);            // far enough back to see the window wall
   const turn = a < 1 ? 0.35 : 0;                                      // on phones, angle the view toward the windows
-  loftCam.aspect = a; loftCam.position.set(-turn, 0.8, d); loftCam.lookAt(turn * 0.6, 0.62, 0); loftCam.updateProjectionMatrix();
-  loftCam.updateMatrixWorld();                                          // project() below needs the new view
+  overview.pos.set(-turn, 0.8, d); overview.look.set(turn * 0.6, 0.62, 0);
+  loftCam.aspect = a; loftCam.updateProjectionMatrix();
   walls.left.position.set(-roomHalf, CEIL / 2, 0);
   walls.right.position.x = roomHalf;
   for (const m of [walls.back, walls.floor, walls.ceiling]) m.position.x = roomHalf - 6;   // stop at the window wall (12 m wide)
+  // parked in the back-left corner, nose angled out (nearly head-on on phones, where the room is narrow)
+  walls.car.position.set(-roomHalf + (a < 1 ? 0.7 : 1.1), 0, BACK + (a < 1 ? 1.5 : 1.15));
+  walls.car.rotation.y = Math.PI / 2 - (a < 1 ? 1.2 : 0.7);
+  walls.car.updateMatrixWorld();
+  if (!fly) setCam(...viewOf(focus));
+}
+function setCam(pos, look) {
+  loftCam.position.copy(pos); camLook.copy(look); loftCam.lookAt(look);
+  loftCam.updateMatrixWorld();                                          // project() below needs the new view
   // globe overlay: centre on GLOBE_AT, sized to GLOBE_R as seen by this camera
   const c = GLOBE_AT.clone().project(loftCam), up = GLOBE_AT.clone().add(new THREE.Vector3(0, GLOBE_R, 0)).project(loftCam);
   const rFrac = (up.y - c.y);                                           // radius as a fraction of the half-height
@@ -493,6 +529,96 @@ function layoutRoom() {
 }
 let homeAltitude = 2.6;
 const homeView = () => ({ lat: 25, lng: 10, altitude: homeAltitude });
+
+// Loft sections. The overview shows them all; picking one (its hanging sign, or clicking it in the room) flies the
+// camera in, and only then does that section respond (the globe only spins once you've zoomed to it).
+const SECTIONS = [
+  { id: 'globe', sign: 'About me!', burst: '#ffd400', ink: '#e8282b', tip: 'Spin the globe · pick a pin',
+    look: () => new THREE.Vector3(0, 0.58, 0), signAt: () => GLOBE_AT.clone().setY(GLOBE_AT.y + GLOBE_R + 0.42), hits: () => [hit, walls.globeHit] },
+  { id: 'car', sign: 'Projects!', burst: '#ff8a1f', ink: '#29a9ef', tip: 'Garage under construction · more soon',
+    look: () => walls.car.localToWorld(new THREE.Vector3(0, 0.4, 0.5)), signAt: () => walls.car.localToWorld(new THREE.Vector3(0, 1.05, 0.3)), hits: () => [walls.carHit] },
+];
+const OVERVIEW_TIP = 'Pick a spot to explore', ZOOM_IN = 0.5, FLY_TIME = 1.4;   // ZOOM_IN: share of the way the camera flies toward a section
+const overview = { pos: new THREE.Vector3(), look: new THREE.Vector3() }, camLook = new THREE.Vector3();
+let focus = null, fly = null;
+const viewOf = (id) => {
+  if (!id) return [overview.pos.clone(), overview.look.clone()];
+  const look = SECTIONS.find((s) => s.id === id).look();
+  return [overview.pos.clone().lerp(look, ZOOM_IN), look];
+};
+const tipEl = roomEl.querySelector('.tip'), backEl = document.getElementById('back');
+function goTo(id) {
+  if (focus === 'globe' && !cardEl.hidden) cardEl.querySelector('.x').click();
+  focus = id;
+  fly = { t: 0, from: [loftCam.position.clone(), camLook.clone()], to: viewOf(id) };
+  roomEl.dataset.focus = id || '';
+  roomEl.classList.remove('picked');
+  tipEl.textContent = id ? SECTIONS.find((s) => s.id === id).tip : OVERVIEW_TIP;
+  backEl.hidden = !id;
+  if (id) backEl.focus();
+}
+backEl.onclick = () => goTo(null);
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && focus && !folio.open) goTo(null); });
+const flyPos = new THREE.Vector3(), flyLook = new THREE.Vector3();
+function updateLoftView(dt) {
+  if (fly) {
+    fly.t = Math.min(1, fly.t + dt / (calm ? 1e-3 : FLY_TIME));
+    const e = ease(fly.t);
+    setCam(flyPos.lerpVectors(fly.from[0], fly.to[0], e), flyLook.lerpVectors(fly.from[1], fly.to[1], e));
+    world?.pointOfView({ altitude: homeAltitude });                     // keep the globe's size matched to the camera
+    if (fly.t === 1) fly = null;
+  }
+  for (const s of SECTIONS) {                                           // hanging signs follow their spot on screen
+    if (!s.el) continue;
+    const v = s.signAt().project(loftCam);
+    s.el.style.transform = `translate(${(v.x + 1) / 2 * innerWidth}px, ${(1 - v.y) / 2 * innerHeight}px) translate(-50%, -100%)`;
+    s.el.hidden = v.z > 1 || (focus && focus !== s.id);
+  }
+}
+// Comic burst: a jagged star outline, halftone dots fading across it, chunky outlined letters, all through a grain
+// filter so it reads like cheap newsprint. Shape jitter is seeded per sign so each one is a little different.
+const SVG = 'http://www.w3.org/2000/svg';
+function comicBurst(s, i) {
+  const r = rand(97 + i * 31), N = 15, pts = [];
+  for (let k = 0; k < N * 2; k++) {
+    const a = (k / (N * 2)) * Math.PI * 2 + (r() - 0.5) * 0.12, out = k % 2 === 0;
+    const rad = out ? 1 + r() * 0.16 : 0.7 + r() * 0.06;
+    pts.push(`${(Math.cos(a) * 118 * rad).toFixed(1)},${(Math.sin(a) * 74 * rad).toFixed(1)}`);
+  }
+  const id = `b${i}`, svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '-140 -95 280 190');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = `
+    <defs>
+      <pattern id="${id}d" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(28)">
+        <circle cx="3.5" cy="3.5" r="1.7" fill="#000" opacity=".28"/></pattern>
+      <linearGradient id="${id}g" x1="0" y1="0" x2="1" y2="1"><stop offset=".35" stop-color="#fff" stop-opacity="0"/>
+        <stop offset="1" stop-color="#fff"/></linearGradient>
+      <mask id="${id}m"><rect x="-140" y="-95" width="280" height="190" fill="url(#${id}g)"/></mask>
+      <filter id="${id}n" x="-10%" y="-10%" width="120%" height="120%">
+        <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="3" seed="${i + 3}" result="n"/>
+        <feColorMatrix in="n" type="saturate" values="0" result="g"/>
+        <feComposite in="SourceGraphic" in2="g" operator="arithmetic" k1="1" k2=".42"/>
+      </filter>
+    </defs>
+    <g filter="url(#${id}n)">
+      <polygon points="${pts.join(' ')}" fill="${s.burst}" stroke="#111" stroke-width="5" stroke-linejoin="round"/>
+      <polygon points="${pts.join(' ')}" fill="url(#${id}d)" mask="url(#${id}m)"/>
+      <g transform="rotate(-6) skewX(-8)" font-family="Bangers, Impact, 'Arial Black', sans-serif" font-weight="400"
+         font-size="50" text-anchor="middle" letter-spacing="1">
+        <text y="17" x="4" dy="4" fill="#111" stroke="#111" stroke-width="10" stroke-linejoin="round"></text>
+        <text y="17" fill="${s.ink}" stroke="#111" stroke-width="7" stroke-linejoin="round" paint-order="stroke"></text>
+        <text y="17" fill="none" stroke="#fff" stroke-width="1.6" opacity=".55" transform="translate(-1.5 -2)"></text>
+      </g>
+    </g>`;
+  for (const t of svg.querySelectorAll('text')) { t.textContent = s.sign.toUpperCase(); t.setAttribute('textLength', 188); t.setAttribute('lengthAdjust', 'spacingAndGlyphs'); }
+  return svg;
+}
+function sectionAt(e) {
+  ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(ptr, loftCam);
+  return SECTIONS.find((s) => ray.intersectObjects(s.hits()).length);
+}
 
 async function enterRoom() {
   if (walls) return;                              // already in the loft
@@ -508,8 +634,20 @@ async function enterRoom() {
   mixer.stopAllAction();
   mixer.clipAction(neoClips.find((c) => c.name === 'neo_sit')).play();
   const clock2 = new THREE.Clock();
-  renderer.setAnimationLoop(() => { mixer.update(Math.min(clock2.getDelta(), 0.05)); renderer.render(loft, loftCam); });
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock2.getDelta(), 0.05);
+    mixer.update(dt); mechMixer?.update(dt);
+    updateLoftView(dt);
+    renderer.render(loft, loftCam);
+  });
   roomEl.hidden = false;
+  tipEl.textContent = OVERVIEW_TIP;
+  document.getElementById('signs').replaceChildren(...SECTIONS.map((s) => {
+    const b = document.createElement('button');
+    b.className = 'sign'; b.ariaLabel = s.sign; b.append(comicBurst(s, SECTIONS.indexOf(s)));
+    b.onclick = () => goTo(s.id);
+    return (s.el = b);
+  }));
   await loadGlobe();
   world = Globe()(document.getElementById('globe'))
     .width(innerWidth).height(innerHeight)
@@ -608,6 +746,11 @@ function pick(e) {
 }
 const TEAR_COMMIT = 0.6;                       // let go past this and it finishes on its own
 const dragLen = () => 0.45 * Math.min(innerWidth, innerHeight);
+renderer.domElement.addEventListener('click', (e) => {
+  if (!walls || focus) return;
+  const s = sectionAt(e);
+  if (s) goTo(s.id);
+});
 renderer.domElement.addEventListener('pointerdown', (e) => {
   if (state === 'walking' && pick(e)) tapNeo();
   else if (state === 'ready') {                // drag in any direction to tear + reveal
@@ -636,7 +779,7 @@ function tapNeo() {
 }
 renderer.domElement.addEventListener('pointermove', (e) => {
   if (drag) tear = Math.min(Math.max(drag.from + Math.hypot(e.clientX - drag.x, e.clientY - drag.y) / dragLen(), 0), 1);
-  if (e.pointerType === 'mouse') renderer.domElement.style.cursor =
+  if (e.pointerType === 'mouse') renderer.domElement.style.cursor = walls ? (!focus && sectionAt(e) ? 'pointer' : '') :
     state === 'walking' && pick(e) ? 'pointer' : state === 'ready' ? 'grab' : state === 'tearing' ? 'grabbing' : '';
 });
 

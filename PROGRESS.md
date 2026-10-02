@@ -162,3 +162,18 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   (1.0/1.1 refused by server, 1.2 + 1.3 accepted, ECDHE-AES-GCM); DNSSEC ON — DS 2371 13 2 27C4CA69… at the
   .com registry, Google DNS returns 'ad'; HSTS left to our own header (not the dashboard toggle). Cert SAN covers
   apex + www. Dashboard "pending"/"not covered by certificate" labels were stale — live checks all pass.
+## Loft sections, car corner, mechanic Neo (2026-10-02)
+  Loft widened (roomHalf 2.8 desktop / 1.6 phone, BACK -3.4, 4th window bay). PS2-style fog/low-res was tried and reverted.
+  car.glb (2.0 MB): Tripo coupe (car_raw/, gitignored) → car.blend; cabin flattened in Blender (verts above the beltline
+  between windshield base and deck squashed 0.62 with smooth ramps; hood + wing untouched). Decimated 0.5, 1K JPEG
+  textures. Scaled ×2.45 in app.js (model ~1 m long, Neo ~1 unit). Note: shape reads close to an RX-7 FD, no badges.
+  mechanic.glb (2.5 MB): second Tripo outfit (mechanic_raw/, gitignored) rigged WITHOUT Mixamo — same proportions as
+  Neo, so it was parented to Neo's Mixamo armature and skin weights copied from the rigged Neo mesh (Data Transfer,
+  nearest-face interpolated; 0 unweighted verts). All Neo clips work on it. Custom action mech_wrench (2 s loop) keyframed
+  in Blender via world-space bone rotations from the idle pose: folded at the hips, legs planted, right forearm twisting.
+  mechanic.blend holds the rig + action. Placed at the car's front bumper leaning into the open engine bay.
+  Sections: overview first; click a hanging sign or the thing itself (invisible hotspots: Neo/globe, car box) → camera
+  flies 50% of the way to it (1.4 s), Back button / Esc returns. #room is pointer-events:none so clicks reach the canvas;
+  the globe only takes input when it's the focused section (it used to capture the whole screen). Signs are comic
+  bursts (SVG: seeded jagged star, halftone pattern, outlined Bangers lettering, feTurbulence grain), labels/colours in
+  SECTIONS. Bangers self-hosted (vendor/fonts, @fontsource/bangers 5.3.0, OFL in LICENSES.txt) — CSP font-src 'self'.

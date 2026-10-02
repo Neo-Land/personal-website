@@ -37,7 +37,31 @@
   #room.in .tip { opacity: 1; }
   #room.picked .tip { opacity: 0; transition-delay: 0s; }
   @media (max-width: 700px) { #card { left: 16px; right: 16px; width: auto; bottom: 16px; } }
-  @media (prefers-reduced-motion: reduce) { #bob, #aura { animation: none; } #float { transition: opacity .6s; } }
+  /* Sections: the room ignores clicks (they reach the 3D canvas) except signs, the back button, the pin card,
+     and the globe once it's the focused section */
+  #room { pointer-events: none; }
+  #room #card, #room .sign, #room .back { pointer-events: auto; }
+  #room[data-focus="globe"] #globe { pointer-events: auto; }
+  #room:not([data-focus="globe"]) .pin { pointer-events: none !important; }
+  @font-face { font-family: Bangers; src: url(vendor/fonts/bangers-latin-400.woff2) format("woff2"); font-display: swap; }
+  /* Comic-book signs: a jagged burst (SVG built in app.js) with halftone dots, outlined lettering and print grain */
+  .sign { position: absolute; left: 0; top: 0; padding: 0; border: 0; background: none; cursor: pointer;
+    width: clamp(150px, 17vw, 240px); opacity: 0; transition: opacity 1s .8s; }
+  #room.in .sign { opacity: 1; }
+  .sign svg { display: block; width: 100%; overflow: visible; animation: pop 2.6s ease-in-out infinite;
+    filter: drop-shadow(4px 5px 0 rgba(0, 0, 0, .55)); }
+  .sign:nth-child(2n) svg { animation-delay: -1.3s; }
+  .sign:hover svg, .sign:focus-visible svg { animation-duration: .5s; }
+  .sign:focus-visible { outline: none; }
+  .sign:focus-visible svg { filter: drop-shadow(0 0 6px #4d8dff) drop-shadow(4px 5px 0 rgba(0, 0, 0, .55)); }
+  @keyframes pop { 0%, 100% { transform: rotate(-5deg) scale(1); } 50% { transform: rotate(-2deg) scale(1.06); } }
+  .back { position: absolute; left: max(20px, env(safe-area-inset-left)); top: max(20px, env(safe-area-inset-top));
+    padding: 6px 16px 8px; background: #fff; color: #111; border: 3px solid #111; border-radius: 22px 18px 24px 16px;
+    box-shadow: 4px 5px 0 #111; font: 400 22px/1 Bangers, Impact, "Arial Black", sans-serif;
+    letter-spacing: .05em; text-transform: uppercase; cursor: pointer; transform: rotate(-4deg); }
+  .back[hidden] { display: none; }
+  .back:hover, .back:focus-visible { background: #ffd400; }
+  @media (prefers-reduced-motion: reduce) { #bob, #aura, .sign svg { animation: none; } #float { transition: opacity .6s; } }
   /* typed greeting, top right of the opening screen */
   #intro { position: fixed; top: max(24px, env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); z-index: 1;
     max-width: calc(100vw - 44px); color: rgba(236, 240, 248, .94); pointer-events: none; transition: opacity .8s;

@@ -209,3 +209,9 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   tip rests on the floor out front. Wooden chair built in code. swordsman.glb 92k→14k tris, 1.18 MB.
   Placement (layoutRoom): beside the rack on wide screens, in front of it on phones (narrow room hid him behind Neo).
   DECOR "AS YOU WISH!" (pink burst). Burst lettering now scales down for long phrases. Loft mixers → `mixers` array.
+## Less stiff: hung sleeves + propped swordsman (2026-10-02)
+  Suit sleeves: scratchpad suit_drop.py borrows Neo's skeleton for the suit (weights copied from Neo's mesh), swings
+  both arms 24° down + 6° forward, bakes the shape (suit_posed.blend), then suit_strip.py re-strips → suit_hung.blend
+  → suit.glb. Sleeves now hang straight down the jacket sides.
+  Swordsman re-posed (sit_pose.py params): right arm hangs straight beside the chair; left hand forward at hip height
+  resting on the rapier. app.js now aims the rapier from the palm's actual height so the tip always meets the floor.

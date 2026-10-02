@@ -559,10 +559,12 @@ function buildNook(group) {
     const man = g.scene; man.traverse((o) => { dress(o); if (o.isMesh) o.frustumCulled = false; });
     seat.add(man);
     const m = new THREE.AnimationMixer(man); m.clipAction(g.animations[0]).play(); m.update(0); mixers.push(m);
-    // the rapier hangs from the palm socket; aim it (in the character's frame) so the tip rests on the floor out front
+    // his left hand rests on the rapier: hilt in the palm socket, blade angled forward so the tip just meets the floor
     const sock = man.getObjectByName('rapier_socket'), rapier = makeRapier();
     man.updateWorldMatrix(true, true);
-    const aim = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), new THREE.Vector3(0.45, -0.61, 0.65).normalize());
+    const palm = man.worldToLocal(sock.getWorldPosition(new THREE.Vector3()));      // character frame, floor at y = 0
+    const L = 0.57, flat = Math.sqrt(Math.max(L * L - palm.y * palm.y, 0)), out = new THREE.Vector3(0.35, 0, 0.94).normalize();
+    const aim = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), new THREE.Vector3(out.x * flat, -palm.y, out.z * flat).normalize());
     rapier.quaternion.copy(sock.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(man.getWorldQuaternion(new THREE.Quaternion())).multiply(aim));
     sock.add(rapier);
   });

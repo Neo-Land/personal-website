@@ -183,3 +183,11 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   (scratchpad export_lean.py: decimate to a triangle budget, cap textures, JPEG; keeps only the armature-parented mesh
   from neo.blend): neo.glb 97k→30k tris, 7.0→3.9 MB (2K textures kept for the close-up zoom); car.glb 50k→14k,
   2.0→0.9 MB; mechanic.glb 45k→14k, 2.5→1.2 MB. Total 11.5→6.0 MB. Full flow re-verified (ticket still on the seam).
+## Hobbies section: display case homage (2026-10-02)
+  The Mask homage, deliberately not a replica: Tripo yellow zoot suit on a headless mannequin with a floating fedora
+  (suit_raw/ → suit.blend → suit.glb, 93k→14k tris, 0.74 MB) and an ORIGINAL carved green wooden mask (mask_raw/ →
+  mask.blend → mask.glb, 17k→6k tris, 512 px textures, 0.32 MB — already a hollow shell, no trimming). No movie
+  prop, face, likeness or title used. buildCase(): steel plinth/lid/posts, 10% glass with env reflections, light strip
+  + SpotLight from the lid, mask on a thin rod. Stands in front of the window wall, turned toward the camera
+  (layoutRoom). Section 'case' → "Hobbies!" (green/yellow burst). DECOR list: non-clickable bursts shown only while
+  their section is focused — "SMOKIN'!" on the case. Signs narrower on phones (min 112 px) so three fit.

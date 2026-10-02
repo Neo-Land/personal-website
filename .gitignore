@@ -18,3 +18,7 @@ mechanic_raw/
 
 # Raw Tripo download for the car
 car_raw/
+
+# Raw Tripo downloads for the display case
+suit_raw/
+mask_raw/

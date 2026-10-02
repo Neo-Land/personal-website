@@ -46,8 +46,10 @@
   @font-face { font-family: Bangers; src: url(vendor/fonts/bangers-latin-400.woff2) format("woff2"); font-display: swap; }
   /* Comic-book signs: a jagged burst (SVG built in app.js) with halftone dots, outlined lettering and print grain */
   .sign { position: absolute; left: 0; top: 0; padding: 0; border: 0; background: none; cursor: pointer;
-    width: clamp(150px, 17vw, 240px); opacity: 0; transition: opacity 1s .8s; }
+    width: clamp(112px, 17vw, 240px); opacity: 0; transition: opacity 1s .8s; }
   #room.in .sign { opacity: 1; }
+  #room .sign.decor { width: clamp(96px, 12vw, 170px); pointer-events: none; cursor: default; }
+  .sign[hidden] { display: none; }
   .sign svg { display: block; width: 100%; overflow: visible; animation: pop 2.6s ease-in-out infinite;
     filter: drop-shadow(4px 5px 0 rgba(0, 0, 0, .55)); }
   .sign:nth-child(2n) svg { animation-delay: -1.3s; }

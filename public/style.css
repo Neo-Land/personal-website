@@ -9,6 +9,7 @@
   /* #float is moved (in JS) so its centre sits on the spot above Neo's head */
   #float { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s .3s; }
   #room.in #float { opacity: 1; }
+  #room.in.away #float { opacity: 0; transition: opacity .5s; }
   #bob { position: absolute; inset: 0; animation: bob 6s ease-in-out infinite; }
   @keyframes bob { 50% { transform: translateY(-10px); } }
   #globe { position: absolute; inset: 0; }

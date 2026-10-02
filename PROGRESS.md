@@ -191,3 +191,11 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   + SpotLight from the lid, mask on a thin rod. Stands in front of the window wall, turned toward the camera
   (layoutRoom). Section 'case' → "Hobbies!" (green/yellow burst). DECOR list: non-clickable bursts shown only while
   their section is focused — "SMOKIN'!" on the case. Signs narrower on phones (min 112 px) so three fit.
+## Hobby nook replaces the glass case (2026-10-02)
+  User wanted it casual. suit_hung.blend: mannequin removed from the Tripo suit by sampling the base-colour texture per
+  face (grey = low saturation → hands 0.40–0.50 m, neck 0.80–0.93) plus everything below 5.5 cm (base + shoes), tiny
+  leftover islands dropped; hat (z > 0.88) split into its own object. Origins: suit = collar top (hook point), hat =
+  brim bottom. suit.glb now holds two nodes 'suit' + 'hat' (12k + 6k tris, 0.81 MB). buildNook(): rolling steel rack
+  with casters, wooden hanger, fedora tipped on the hook; wooden nightstand (drawer, brass knob) with a small warm lamp
+  (PointLight); mask leaning back on top. Section id 'hobbies'. The globe overlay now fades out while another section
+  is focused (#room.away) — it's HTML on top of the canvas, so it used to float over the nook/car on phones.

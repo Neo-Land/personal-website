@@ -453,8 +453,8 @@ function buildLoft() {
   const sky = new THREE.Mesh(new THREE.PlaneGeometry(16, 8), new THREE.MeshBasicMaterial({ map: skyTex(), toneMapped: false }));
   sky.rotation.y = -Math.PI / 2;
   add(sky, 4, 2.4, -0.5);
-  walls = { left, right, back, floor, ceiling, car: new THREE.Group(), case: new THREE.Group() };
-  loft.add(walls.car, walls.case);
+  walls = { left, right, back, floor, ceiling, car: new THREE.Group(), nook: new THREE.Group() };
+  loft.add(walls.car, walls.nook);
   loft.add(right);
 
   // Lighting: moody and warm
@@ -462,12 +462,12 @@ function buildLoft() {
   loft.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;  // soft reflections so the floor reads glossy
   loft.environmentIntensity = 0.16;
   loadCarCorner(walls.car);
-  buildCase(walls.case);
+  buildNook(walls.nook);
   // invisible click targets for the sections (generous, so they're easy to hit on phones)
   const hotspot = (geo) => new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ visible: false }));
   walls.globeHit = hotspot(new THREE.SphereGeometry(GLOBE_R * 1.3)); walls.globeHit.position.copy(GLOBE_AT); loft.add(walls.globeHit);
   walls.carHit = hotspot(new THREE.BoxGeometry(1.4, 1.2, 3.4)); walls.carHit.position.set(0, 0.6, 0.2); walls.car.add(walls.carHit);
-  walls.caseHit = hotspot(new THREE.BoxGeometry(CASE.w + 0.1, CASE.base + CASE.h, CASE.d + 0.1)); walls.caseHit.position.y = (CASE.base + CASE.h) / 2; walls.case.add(walls.caseHit);
+  walls.nookHit = hotspot(new THREE.BoxGeometry(1.7, 1.35, 0.7)); walls.nookHit.position.set(0.1, 0.67, 0); walls.nook.add(walls.nookHit);
   loft.add(new THREE.HemisphereLight(0xffc896, 0x140c08, 0.35));
   const fill = new THREE.DirectionalLight(0xffa860, 0.4);                  // faint warm front fill so Neo isn't a silhouette
   fill.position.set(-1.5, 2, 4);
@@ -502,28 +502,52 @@ function loadCarCorner(group) {
     mechMixer.clipAction(g.animations[0]).play();
   });
 }
-// The display case — a homage, not a replica: a yellow zoot suit on a headless mannequin and an original carved
-// green mask (both Tripo), in a dark-framed glass vault lit from above. Stands in front of the window wall.
-const CASE = { w: 0.95, d: 0.6, h: 1.35, base: 0.14 };
-function buildCase(group) {
-  const { w, d, h, base } = CASE, top = base + h;
-  const steel = new THREE.MeshStandardMaterial({ color: 0x0c0c0e, metalness: 0.7, roughness: 0.35 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.04, transparent: true, opacity: 0.1,
-    side: THREE.DoubleSide, depthWrite: false, envMap: loft.environment, envMapIntensity: 1.5 });
-  const box = (bw, bh, bd, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; group.add(m); return m; };
-  box(w + 0.08, base, d + 0.08, steel, 0, base / 2, 0);                         // plinth
-  box(w + 0.08, 0.07, d + 0.08, steel, 0, top + 0.035, 0);                      // lid
-  for (const x of [-1, 1]) for (const z of [-1, 1]) box(0.025, h, 0.025, steel, x * w / 2, base + h / 2, z * d / 2);   // corner posts
-  const pane = box(w, h, d, glass, 0, base + h / 2, 0); pane.castShadow = false; pane.renderOrder = 3;
-  box(w - 0.12, 0.012, 0.04, new THREE.MeshBasicMaterial({ color: 0xfff3dc }), 0, top - 0.012, 0.12);   // light strip
-  const spot = new THREE.SpotLight(0xfff0d8, 7, 2.4, 0.62, 0.7, 1.5);         // museum spotlight onto the suit
-  spot.position.set(0, top - 0.03, 0.12); spot.target.position.set(-0.05, base + 0.4, 0);
-  group.add(spot, spot.target);
-  const post = box(0.018, 0.58, 0.018, steel, 0.31, base + 0.29, 0.05);           // the mask's display rod
-  post.castShadow = false;
+// The hobby nook — a homage, not a replica: the yellow zoot suit (mannequin stripped out in Blender) hangs on a rolling
+// garment rack with the fedora resting on the hanger hook, and an original carved green mask leans on a nightstand
+// under a little lamp. Local layout: rack on the left, nightstand on the right, everything facing +z.
+const NOOK = { bar: 1.06, rackX: -0.3, standX: 0.5 };
+function buildNook(group) {
+  const { bar, rackX, standX } = NOOK;
+  const steel = new THREE.MeshStandardMaterial({ color: 0x1a1b1e, metalness: 0.8, roughness: 0.35 });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x5a3822, roughness: 0.55 });
+  const brass = new THREE.MeshStandardMaterial({ color: 0xc89b4a, metalness: 0.9, roughness: 0.3 });
+  const add = (geo, mat, x, y, z, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, 0, rz); m.castShadow = m.receiveShadow = true; group.add(m); return m; };
+  const rod = (len, r = 0.014) => new THREE.CylinderGeometry(r, r, len, 12);
+  // rolling rack: two uprights, top bar, two feet with casters
+  for (const sx of [-1, 1]) {
+    const x = rackX + sx * 0.46;
+    add(rod(bar), steel, x, bar / 2 + 0.05, 0);
+    add(rod(0.44), steel, x, 0.06, 0, Math.PI / 2);
+    for (const sz of [-1, 1]) add(new THREE.CylinderGeometry(0.03, 0.03, 0.025, 14), steel, x, 0.03, sz * 0.2, 0, Math.PI / 2);
+  }
+  add(rod(0.96), steel, rackX, bar + 0.05, 0, 0, Math.PI / 2);
+  // wooden hanger: curved shoulders + a hook stem up to the bar (the hat sits on the hook)
+  const shoulders = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-0.21, -0.12, 0), new THREE.Vector3(0, -0.03, 0), new THREE.Vector3(0.21, -0.12, 0));
+  add(new THREE.TubeGeometry(shoulders, 20, 0.013, 8), wood, rackX, bar + 0.05, 0);
+  add(rod(0.08, 0.005), brass, rackX, bar + 0.04, 0);
+  // nightstand: box on short legs, a drawer with a brass knob, and a small lamp
+  const top = 0.5;
+  add(new THREE.BoxGeometry(0.44, 0.38, 0.38), wood, standX, top - 0.19, 0);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.BoxGeometry(0.035, 0.12, 0.035), wood, standX + sx * 0.19, 0.06, sz * 0.16);
+  add(new THREE.BoxGeometry(0.38, 0.13, 0.01), new THREE.MeshStandardMaterial({ color: 0x4a2d1b, roughness: 0.6 }), standX, top - 0.12, 0.192);
+  add(new THREE.SphereGeometry(0.014, 12, 8), brass, standX, top - 0.12, 0.2);
+  add(new THREE.CylinderGeometry(0.035, 0.05, 0.03, 16), brass, standX + 0.13, top + 0.015, -0.08);
+  add(rod(0.2, 0.007), brass, standX + 0.13, top + 0.12, -0.08);
+  add(new THREE.CylinderGeometry(0.05, 0.085, 0.09, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0xf3dfb8, emissive: 0xffb45a, emissiveIntensity: 0.6, side: THREE.DoubleSide }), standX + 0.13, top + 0.23, -0.08);
+  const lamp = new THREE.PointLight(0xffb45a, 1.4, 1.6, 1.8);
+  lamp.position.set(standX + 0.13, top + 0.2, -0.08); group.add(lamp);
   const loader = new GLTFLoader(), dress = (o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; };
-  loader.load('suit.glb', (g) => { g.scene.scale.setScalar(1.08); g.scene.position.set(-0.1, base, 0); g.scene.traverse(dress); group.add(g.scene); });
-  loader.load('mask.glb', (g) => { g.scene.scale.setScalar(0.21); g.scene.position.set(0.31, base + 0.56, 0.05); g.scene.rotation.y = -0.35; g.scene.traverse(dress); group.add(g.scene); });
+  loader.load('suit.glb', (g) => {
+    g.scene.traverse(dress);
+    const suit = g.scene.getObjectByName('suit'), hat = g.scene.getObjectByName('hat');
+    suit.scale.setScalar(1.08); suit.position.set(rackX, bar + 0.02, 0);         // origin = collar top, under the hook
+    hat.scale.setScalar(1.08); hat.position.set(rackX, bar + 0.075, 0); hat.rotation.set(-0.12, 0.3, 0.1);  // tipped on the hook
+    group.add(suit, hat);
+  });
+  loader.load('mask.glb', (g) => {                                               // leaning back against the lamp side
+    g.scene.scale.setScalar(0.21); g.scene.position.set(standX - 0.05, top, 0.03); g.scene.rotation.set(-0.32, -0.25, 0);
+    g.scene.traverse(dress); group.add(g.scene);
+  });
 }
 // Room width + camera adapt to the screen; places the walls and the globe overlay
 function layoutRoom() {
@@ -540,10 +564,10 @@ function layoutRoom() {
   walls.car.position.set(-roomHalf + (a < 1 ? 0.7 : 1.1), 0, BACK + (a < 1 ? 1.5 : 1.15));
   walls.car.rotation.y = Math.PI / 2 - (a < 1 ? 1.2 : 0.7);
   walls.car.updateMatrixWorld();
-  // display case by the windows, turned most of the way toward the camera
-  walls.case.position.set(roomHalf - (a < 1 ? 0.45 : 0.6), 0, a < 1 ? -1.7 : -1.2);
-  walls.case.rotation.y = 0.75 * Math.atan2(overview.pos.x - walls.case.position.x, overview.pos.z - walls.case.position.z);
-  walls.case.updateMatrixWorld();
+  // hobby nook by the windows, turned most of the way toward the camera
+  walls.nook.position.set(roomHalf - (a < 1 ? 0.65 : 0.85), 0, a < 1 ? -1.8 : -1.3);
+  walls.nook.rotation.y = 0.75 * Math.atan2(overview.pos.x - walls.nook.position.x, overview.pos.z - walls.nook.position.z);
+  walls.nook.updateMatrixWorld();
   if (!fly) setCam(...viewOf(focus));
 }
 function setCam(pos, look) {
@@ -566,12 +590,12 @@ const SECTIONS = [
     look: () => new THREE.Vector3(0, 0.58, 0), signAt: () => GLOBE_AT.clone().setY(GLOBE_AT.y + GLOBE_R + 0.42), hits: () => [hit, walls.globeHit] },
   { id: 'car', sign: 'Projects!', burst: '#ff8a1f', ink: '#29a9ef', tip: 'Garage under construction · more soon',
     look: () => walls.car.localToWorld(new THREE.Vector3(0, 0.4, 0.5)), signAt: () => walls.car.localToWorld(new THREE.Vector3(0, 1.05, 0.3)), hits: () => [walls.carHit] },
-  { id: 'case', sign: 'Hobbies!', burst: '#4fc35a', ink: '#ffd400', tip: 'Off the clock · more soon',
-    look: () => walls.case.localToWorld(new THREE.Vector3(0, 0.78, 0)), signAt: () => walls.case.localToWorld(new THREE.Vector3(0, CASE.base + CASE.h + 0.12, 0)), hits: () => [walls.caseHit] },
+  { id: 'hobbies', sign: 'Hobbies!', burst: '#4fc35a', ink: '#ffd400', tip: 'Off the clock · more soon',
+    look: () => walls.nook.localToWorld(new THREE.Vector3(0.1, 0.62, 0)), signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX, NOOK.bar + 0.42, 0)), hits: () => [walls.nookHit] },
 ];
 // Decorative bursts (not clickable) that pop up only while their section is in focus
 const DECOR = [
-  { section: 'case', sign: "Smokin'!", burst: '#e8282b', ink: '#ffd400', signAt: () => walls.case.localToWorld(new THREE.Vector3(0.32, CASE.base + 0.95, CASE.d / 2)) },
+  { section: 'hobbies', sign: "Smokin'!", burst: '#e8282b', ink: '#ffd400', signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX + 0.36, NOOK.bar - 0.12, 0.2)) },
 ];
 const OVERVIEW_TIP = 'Pick a spot to explore', ZOOM_IN = 0.5, FLY_TIME = 1.4;   // ZOOM_IN: share of the way the camera flies toward a section
 const overview = { pos: new THREE.Vector3(), look: new THREE.Vector3() }, camLook = new THREE.Vector3();
@@ -588,6 +612,7 @@ function goTo(id) {
   fly = { t: 0, from: [loftCam.position.clone(), camLook.clone()], to: viewOf(id) };
   roomEl.dataset.focus = id || '';
   roomEl.classList.remove('picked');
+  roomEl.classList.toggle('away', !!id && id !== 'globe');                // globe overlay fades while another section is in view
   tipEl.textContent = id ? SECTIONS.find((s) => s.id === id).tip : OVERVIEW_TIP;
   backEl.hidden = !id;
   if (id) backEl.focus();

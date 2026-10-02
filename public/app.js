@@ -548,7 +548,8 @@ function buildNook(group) {
     g.scene.scale.setScalar(0.21); g.scene.position.set(standX - 0.05, top, 0.03); g.scene.rotation.set(-0.32, -0.25, 0);
     g.scene.traverse(dress); group.add(g.scene);
   });
-  // swashbuckler Neo slouched on a wooden chair (pose keyframed in Blender), resting a hand on his rapier
+  // swashbuckler Neo slouched on a wooden chair (pose keyframed in Blender), gripping his rapier (modelled in
+  // Blender and parented to his hand bone, so it moves with him)
   const seat = walls.seat = new THREE.Group(); group.add(seat);                    // placed in layoutRoom
   add2(seat, new THREE.BoxGeometry(0.29, 0.03, 0.27), wood, 0, 0.235, 0);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) add2(seat, new THREE.BoxGeometry(0.03, 0.235, 0.03), wood, sx * 0.12, 0.1175, sz * 0.115);
@@ -556,33 +557,15 @@ function buildNook(group) {
   for (const sx of [-1, 1]) add2(back, new THREE.BoxGeometry(0.03, 0.34, 0.03), wood, sx * 0.12, 0.17, 0);
   for (const y of [0.2, 0.3]) add2(back, new THREE.BoxGeometry(0.22, 0.05, 0.018), wood, 0, y, 0);
   loader.load('swordsman.glb', (g) => {
-    const man = g.scene; man.traverse((o) => { dress(o); if (o.isMesh) o.frustumCulled = false; });
+    const man = g.scene;
+    man.traverse((o) => {
+      dress(o); if (!o.isMesh) return;
+      o.frustumCulled = false;
+      if (o.material.name.startsWith('rapier')) { o.material.envMap = loft.environment; o.material.envMapIntensity = 1.2; }   // steel catches the light
+    });
     seat.add(man);
     const m = new THREE.AnimationMixer(man); m.clipAction(g.animations[0]).play(); m.update(0); mixers.push(m);
-    // his left hand rests on the rapier: hilt in the palm socket, blade angled forward so the tip just meets the floor
-    const sock = man.getObjectByName('rapier_socket'), rapier = makeRapier();
-    man.updateWorldMatrix(true, true);
-    const palm = man.worldToLocal(sock.getWorldPosition(new THREE.Vector3()));      // character frame, floor at y = 0
-    const L = 0.57, flat = Math.sqrt(Math.max(L * L - palm.y * palm.y, 0)), out = new THREE.Vector3(0.35, 0, 0.94).normalize();
-    const aim = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), new THREE.Vector3(out.x * flat, -palm.y, out.z * flat).normalize());
-    rapier.quaternion.copy(sock.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(man.getWorldQuaternion(new THREE.Quaternion())).multiply(aim));
-    sock.add(rapier);
   });
-}
-// A rapier, hilt at the origin and the blade pointing down -y: pommel, grip, cup guard, cross quillons, knuckle bow
-function makeRapier() {
-  const r = new THREE.Group();
-  const steel = new THREE.MeshStandardMaterial({ color: 0xd8dde3, metalness: 1, roughness: 0.22 });
-  const leather = new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.8 });
-  const put = (geo, mat, y, rz = 0, rx = 0) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; m.rotation.set(rx, 0, rz); m.castShadow = true; r.add(m); return m; };
-  put(new THREE.CylinderGeometry(0.008, 0.009, 0.075, 10), leather, 0);
-  put(new THREE.SphereGeometry(0.014, 12, 8), steel, 0.045);
-  put(new THREE.SphereGeometry(0.034, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), steel, -0.05, 0, Math.PI).material.side = THREE.DoubleSide;
-  put(new THREE.CylinderGeometry(0.004, 0.004, 0.13, 8), steel, -0.05, Math.PI / 2);
-  const bow = new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, -0.05, 0.03), new THREE.Vector3(0, 0, 0.055), new THREE.Vector3(0, 0.04, 0.008));
-  r.add(new THREE.Mesh(new THREE.TubeGeometry(bow, 16, 0.003, 6), steel));
-  put(new THREE.CylinderGeometry(0.0015, 0.006, 0.52, 6), steel, -0.05 - 0.26);
-  return r;
 }
 // Room width + camera adapt to the screen; places the walls and the globe overlay
 function layoutRoom() {

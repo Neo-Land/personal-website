@@ -215,3 +215,11 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   → suit.glb. Sleeves now hang straight down the jacket sides.
   Swordsman re-posed (sit_pose.py params): right arm hangs straight beside the chair; left hand forward at hip height
   resting on the rapier. app.js now aims the rapier from the palm's actual height so the tip always meets the floor.
+## Detailed held rapier + sleeves off the torso (2026-10-02)
+  Rapier now modelled in Blender (scratchpad rapier.py, ~4k tris): leather grip with brass wire wrap + ferrules, oval
+  pommel + button, S-curved quillons with brass knobs, cup guard with brass rim/band, knuckle bow, swept side bars,
+  side rings, rear counter-guard, ricasso, diamond-section blade. sit_pose.py curls his left index/thumb into a fist,
+  turns the wrist (3 iterations) so the grip runs through the fist and the blade exits the pinky side toward a floor
+  point, then parents the rapier to the LeftHand bone — exported inside swordsman.glb (1.37 MB). Code rapier removed;
+  rapier materials get the room env map in app.js so the steel reads. Suit sleeves re-baked at 15° down / 9° forward
+  so they hang beside the jacket instead of sinking into it.

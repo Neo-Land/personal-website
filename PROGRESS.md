@@ -177,3 +177,9 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   the globe only takes input when it's the focused section (it used to capture the whole screen). Signs are comic
   bursts (SVG: seeded jagged star, halftone pattern, outlined Bangers lettering, feTurbulence grain), labels/colours in
   SECTIONS. Bangers self-hosted (vendor/fonts, @fontsource/bangers 5.3.0, OFL in LICENSES.txt) — CSP font-src 'self'.
+## Lighter models, same look (2026-10-02)
+  PS2-style test (3–5k tris, flat shading, 256 px matte textures) was tried on car + mechanic; user preferred the smooth
+  look. Most of the weight was geometry, not textures, so all three models were re-exported with smooth decimation
+  (scratchpad export_lean.py: decimate to a triangle budget, cap textures, JPEG; keeps only the armature-parented mesh
+  from neo.blend): neo.glb 97k→30k tris, 7.0→3.9 MB (2K textures kept for the close-up zoom); car.glb 50k→14k,
+  2.0→0.9 MB; mechanic.glb 45k→14k, 2.5→1.2 MB. Total 11.5→6.0 MB. Full flow re-verified (ticket still on the seam).

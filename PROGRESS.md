@@ -223,3 +223,8 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   point, then parents the rapier to the LeftHand bone — exported inside swordsman.glb (1.37 MB). Code rapier removed;
   rapier materials get the room env map in app.js so the steel reads. Suit sleeves re-baked at 15° down / 9° forward
   so they hang beside the jacket instead of sinking into it.
+## Phone layout of the hobby nook (2026-10-02)
+  Phones now keep the desktop order (swordsman left of the rack, suit, nightstand + mask right): chair at nook-local
+  (-0.92, 0.4), nook pushed back to z -2.1. Sections can define eye() — on phones the Hobbies camera comes in high
+  (2.1) and from straight in front (5.2 back) so the seated Neo doesn't block it and all three fit the narrow screen.
+  "AS YOU WISH!" now hangs above the swordsman's head (no overlap with "SMOKIN'!"). Mask scaled 0.21 → 0.16.

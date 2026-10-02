@@ -545,7 +545,7 @@ function buildNook(group) {
     group.add(suit, hat);
   });
   loader.load('mask.glb', (g) => {                                               // leaning back against the lamp side
-    g.scene.scale.setScalar(0.21); g.scene.position.set(standX - 0.05, top, 0.03); g.scene.rotation.set(-0.32, -0.25, 0);
+    g.scene.scale.setScalar(0.16); g.scene.position.set(standX - 0.05, top, 0.04); g.scene.rotation.set(-0.32, -0.25, 0);
     g.scene.traverse(dress); group.add(g.scene);
   });
   // swashbuckler Neo slouched on a wooden chair (pose keyframed in Blender), gripping his rapier (modelled in
@@ -583,10 +583,10 @@ function layoutRoom() {
   walls.car.rotation.y = Math.PI / 2 - (a < 1 ? 1.2 : 0.7);
   walls.car.updateMatrixWorld();
   // hobby nook by the windows, turned most of the way toward the camera
-  walls.nook.position.set(roomHalf - (a < 1 ? 0.65 : 0.85), 0, a < 1 ? -1.8 : -1.3);
+  walls.nook.position.set(roomHalf - (a < 1 ? 0.62 : 0.85), 0, a < 1 ? -2.1 : -1.3);
   walls.nook.rotation.y = 0.75 * Math.atan2(overview.pos.x - walls.nook.position.x, overview.pos.z - walls.nook.position.z);
-  // the swordsman's chair: beside the rack on wide screens; in front of it on phones (the room is too narrow)
-  walls.seat.position.set(a < 1 ? 0.05 : -1.12, 0, a < 1 ? 0.62 : 0.3);
+  // the swordsman's chair, left of the rack (tucked in closer on phones, where the room is narrow)
+  walls.seat.position.set(a < 1 ? -0.92 : -1.12, 0, a < 1 ? 0.4 : 0.3);
   walls.nook.updateMatrixWorld();
   if (!fly) setCam(...viewOf(focus));
 }
@@ -611,20 +611,22 @@ const SECTIONS = [
   { id: 'car', sign: 'Projects!', burst: '#ff8a1f', ink: '#29a9ef', tip: 'Garage under construction · more soon',
     look: () => walls.car.localToWorld(new THREE.Vector3(0, 0.4, 0.5)), signAt: () => walls.car.localToWorld(new THREE.Vector3(0, 1.05, 0.3)), hits: () => [walls.carHit] },
   { id: 'hobbies', sign: 'Hobbies!', burst: '#4fc35a', ink: '#ffd400', tip: 'Off the clock · more soon',
-    look: () => walls.nook.localToWorld(new THREE.Vector3(innerWidth < innerHeight ? 0.05 : -0.3, 0.55, 0.15)), signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX, NOOK.bar + 0.42, 0)), hits: () => [walls.nookHit] },
+    look: () => walls.nook.localToWorld(new THREE.Vector3(innerWidth < innerHeight ? -0.2 : -0.3, 0.5, 0.15)),
+    // phones: come in high, from straight in front of the nook, so the seated Neo doesn't block the view
+    eye: () => innerWidth < innerHeight ? walls.nook.localToWorld(new THREE.Vector3(-0.2, 2.1, 5.2)) : undefined, signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX, NOOK.bar + 0.42, 0)), hits: () => [walls.nookHit] },
 ];
 // Decorative bursts (not clickable) that pop up only while their section is in focus
 const DECOR = [
   { section: 'hobbies', sign: "Smokin'!", burst: '#e8282b', ink: '#ffd400', signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX + 0.36, NOOK.bar - 0.12, 0.2)) },
-  { section: 'hobbies', sign: 'As you wish!', burst: '#ff7ab8', ink: '#ffffff', signAt: () => walls.seat.localToWorld(new THREE.Vector3(-0.34, 0.86, 0)) },
+  { section: 'hobbies', sign: 'As you wish!', burst: '#ff7ab8', ink: '#ffffff', signAt: () => walls.seat.localToWorld(new THREE.Vector3(0, 1.02, 0)) },
 ];
 const OVERVIEW_TIP = 'Pick a spot to explore', ZOOM_IN = 0.5, FLY_TIME = 1.4;   // ZOOM_IN: share of the way the camera flies toward a section
 const overview = { pos: new THREE.Vector3(), look: new THREE.Vector3() }, camLook = new THREE.Vector3();
 let focus = null, fly = null;
 const viewOf = (id) => {
   if (!id) return [overview.pos.clone(), overview.look.clone()];
-  const look = SECTIONS.find((s) => s.id === id).look();
-  return [overview.pos.clone().lerp(look, ZOOM_IN), look];
+  const sec = SECTIONS.find((s) => s.id === id), look = sec.look();
+  return [sec.eye?.() ?? overview.pos.clone().lerp(look, ZOOM_IN), look];
 };
 const tipEl = roomEl.querySelector('.tip'), backEl = document.getElementById('back');
 function goTo(id) {

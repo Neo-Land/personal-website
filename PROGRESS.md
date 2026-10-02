@@ -199,3 +199,13 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   with casters, wooden hanger, fedora tipped on the hook; wooden nightstand (drawer, brass knob) with a small warm lamp
   (PointLight); mask leaning back on top. Section id 'hobbies'. The globe overlay now fades out while another section
   is focused (#room.away) — it's HTML on top of the canvas, so it used to float over the nook/car on phones.
+## Swashbuckler Neo in the hobby nook (2026-10-02)
+  Third outfit (sword_raw/, an original black swashbuckler costume — homage, no film names/photos/likeness) rigged with
+  scratchpad rig_outfit.py: same height as Neo, arms ~6° closer to the body, weights copied cleanly (0 unweighted).
+  swordsman.blend: action sword_slouch (4 s breathing loop) keyframed via sit_pose.py — hips lowered onto a 0.25 seat and
+  rolled back, thighs forward + splayed, boots out front, right hand by the thigh, left hand hanging at the chair side.
+  An empty 'rapier_socket' is bone-parented to LeftHand at the palm; in app.js the code-built rapier (makeRapier: pommel,
+  grip, cup guard, quillons, knuckle bow, tapered blade) is attached to it and aimed in the character's frame so the
+  tip rests on the floor out front. Wooden chair built in code. swordsman.glb 92k→14k tris, 1.18 MB.
+  Placement (layoutRoom): beside the rack on wide screens, in front of it on phones (narrow room hid him behind Neo).
+  DECOR "AS YOU WISH!" (pink burst). Burst lettering now scales down for long phrases. Loft mixers → `mixers` array.

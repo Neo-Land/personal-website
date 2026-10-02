@@ -467,7 +467,7 @@ function buildLoft() {
   const hotspot = (geo) => new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ visible: false }));
   walls.globeHit = hotspot(new THREE.SphereGeometry(GLOBE_R * 1.3)); walls.globeHit.position.copy(GLOBE_AT); loft.add(walls.globeHit);
   walls.carHit = hotspot(new THREE.BoxGeometry(1.4, 1.2, 3.4)); walls.carHit.position.set(0, 0.6, 0.2); walls.car.add(walls.carHit);
-  walls.nookHit = hotspot(new THREE.BoxGeometry(1.7, 1.35, 0.7)); walls.nookHit.position.set(0.1, 0.67, 0); walls.nook.add(walls.nookHit);
+  walls.nookHit = hotspot(new THREE.BoxGeometry(2.5, 1.35, 1.0)); walls.nookHit.position.set(-0.25, 0.67, 0.15); walls.nook.add(walls.nookHit);
   loft.add(new THREE.HemisphereLight(0xffc896, 0x140c08, 0.35));
   const fill = new THREE.DirectionalLight(0xffa860, 0.4);                  // faint warm front fill so Neo isn't a silhouette
   fill.position.set(-1.5, 2, 4);
@@ -485,7 +485,7 @@ function buildLoft() {
 // turning a wrench (keyframed in Blender on Neo's skeleton). Loaded after the loft is up so entering never waits.
 const CAR_SCALE = 2.45;                                           // car.glb is modelled ~1 m long; Neo is ~1 unit tall
 const MECH_AT = [-0.15, 0, 1.42];                                // at the front bumper, leaning into the open engine bay
-let mechMixer;
+const mixers = [];                                                // the loft's extra animated characters
 function loadCarCorner(group) {
   const loader = new GLTFLoader();
   loader.load('car.glb', (g) => {
@@ -498,8 +498,7 @@ function loadCarCorner(group) {
     mech.position.set(...MECH_AT); mech.rotation.y = Math.PI;        // facing the car
     mech.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
     group.add(mech);
-    mechMixer = new THREE.AnimationMixer(mech);
-    mechMixer.clipAction(g.animations[0]).play();
+    const m = new THREE.AnimationMixer(mech); m.clipAction(g.animations[0]).play(); mixers.push(m);
   });
 }
 // The hobby nook — a homage, not a replica: the yellow zoot suit (mannequin stripped out in Blender) hangs on a rolling
@@ -513,6 +512,7 @@ function buildNook(group) {
   const brass = new THREE.MeshStandardMaterial({ color: 0xc89b4a, metalness: 0.9, roughness: 0.3 });
   const add = (geo, mat, x, y, z, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, 0, rz); m.castShadow = m.receiveShadow = true; group.add(m); return m; };
   const rod = (len, r = 0.014) => new THREE.CylinderGeometry(r, r, len, 12);
+  const add2 = (parent, geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
   // rolling rack: two uprights, top bar, two feet with casters
   for (const sx of [-1, 1]) {
     const x = rackX + sx * 0.46;
@@ -548,6 +548,39 @@ function buildNook(group) {
     g.scene.scale.setScalar(0.21); g.scene.position.set(standX - 0.05, top, 0.03); g.scene.rotation.set(-0.32, -0.25, 0);
     g.scene.traverse(dress); group.add(g.scene);
   });
+  // swashbuckler Neo slouched on a wooden chair (pose keyframed in Blender), resting a hand on his rapier
+  const seat = walls.seat = new THREE.Group(); group.add(seat);                    // placed in layoutRoom
+  add2(seat, new THREE.BoxGeometry(0.29, 0.03, 0.27), wood, 0, 0.235, 0);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add2(seat, new THREE.BoxGeometry(0.03, 0.235, 0.03), wood, sx * 0.12, 0.1175, sz * 0.115);
+  const back = new THREE.Group(); back.position.set(0, 0.25, -0.125); back.rotation.x = -0.17; seat.add(back);
+  for (const sx of [-1, 1]) add2(back, new THREE.BoxGeometry(0.03, 0.34, 0.03), wood, sx * 0.12, 0.17, 0);
+  for (const y of [0.2, 0.3]) add2(back, new THREE.BoxGeometry(0.22, 0.05, 0.018), wood, 0, y, 0);
+  loader.load('swordsman.glb', (g) => {
+    const man = g.scene; man.traverse((o) => { dress(o); if (o.isMesh) o.frustumCulled = false; });
+    seat.add(man);
+    const m = new THREE.AnimationMixer(man); m.clipAction(g.animations[0]).play(); m.update(0); mixers.push(m);
+    // the rapier hangs from the palm socket; aim it (in the character's frame) so the tip rests on the floor out front
+    const sock = man.getObjectByName('rapier_socket'), rapier = makeRapier();
+    man.updateWorldMatrix(true, true);
+    const aim = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), new THREE.Vector3(0.45, -0.61, 0.65).normalize());
+    rapier.quaternion.copy(sock.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(man.getWorldQuaternion(new THREE.Quaternion())).multiply(aim));
+    sock.add(rapier);
+  });
+}
+// A rapier, hilt at the origin and the blade pointing down -y: pommel, grip, cup guard, cross quillons, knuckle bow
+function makeRapier() {
+  const r = new THREE.Group();
+  const steel = new THREE.MeshStandardMaterial({ color: 0xd8dde3, metalness: 1, roughness: 0.22 });
+  const leather = new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.8 });
+  const put = (geo, mat, y, rz = 0, rx = 0) => { const m = new THREE.Mesh(geo, mat); m.position.y = y; m.rotation.set(rx, 0, rz); m.castShadow = true; r.add(m); return m; };
+  put(new THREE.CylinderGeometry(0.008, 0.009, 0.075, 10), leather, 0);
+  put(new THREE.SphereGeometry(0.014, 12, 8), steel, 0.045);
+  put(new THREE.SphereGeometry(0.034, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), steel, -0.05, 0, Math.PI).material.side = THREE.DoubleSide;
+  put(new THREE.CylinderGeometry(0.004, 0.004, 0.13, 8), steel, -0.05, Math.PI / 2);
+  const bow = new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, -0.05, 0.03), new THREE.Vector3(0, 0, 0.055), new THREE.Vector3(0, 0.04, 0.008));
+  r.add(new THREE.Mesh(new THREE.TubeGeometry(bow, 16, 0.003, 6), steel));
+  put(new THREE.CylinderGeometry(0.0015, 0.006, 0.52, 6), steel, -0.05 - 0.26);
+  return r;
 }
 // Room width + camera adapt to the screen; places the walls and the globe overlay
 function layoutRoom() {
@@ -567,6 +600,8 @@ function layoutRoom() {
   // hobby nook by the windows, turned most of the way toward the camera
   walls.nook.position.set(roomHalf - (a < 1 ? 0.65 : 0.85), 0, a < 1 ? -1.8 : -1.3);
   walls.nook.rotation.y = 0.75 * Math.atan2(overview.pos.x - walls.nook.position.x, overview.pos.z - walls.nook.position.z);
+  // the swordsman's chair: beside the rack on wide screens; in front of it on phones (the room is too narrow)
+  walls.seat.position.set(a < 1 ? 0.05 : -1.12, 0, a < 1 ? 0.62 : 0.3);
   walls.nook.updateMatrixWorld();
   if (!fly) setCam(...viewOf(focus));
 }
@@ -591,11 +626,12 @@ const SECTIONS = [
   { id: 'car', sign: 'Projects!', burst: '#ff8a1f', ink: '#29a9ef', tip: 'Garage under construction · more soon',
     look: () => walls.car.localToWorld(new THREE.Vector3(0, 0.4, 0.5)), signAt: () => walls.car.localToWorld(new THREE.Vector3(0, 1.05, 0.3)), hits: () => [walls.carHit] },
   { id: 'hobbies', sign: 'Hobbies!', burst: '#4fc35a', ink: '#ffd400', tip: 'Off the clock · more soon',
-    look: () => walls.nook.localToWorld(new THREE.Vector3(0.1, 0.62, 0)), signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX, NOOK.bar + 0.42, 0)), hits: () => [walls.nookHit] },
+    look: () => walls.nook.localToWorld(new THREE.Vector3(innerWidth < innerHeight ? 0.05 : -0.3, 0.55, 0.15)), signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX, NOOK.bar + 0.42, 0)), hits: () => [walls.nookHit] },
 ];
 // Decorative bursts (not clickable) that pop up only while their section is in focus
 const DECOR = [
   { section: 'hobbies', sign: "Smokin'!", burst: '#e8282b', ink: '#ffd400', signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX + 0.36, NOOK.bar - 0.12, 0.2)) },
+  { section: 'hobbies', sign: 'As you wish!', burst: '#ff7ab8', ink: '#ffffff', signAt: () => walls.seat.localToWorld(new THREE.Vector3(-0.34, 0.86, 0)) },
 ];
 const OVERVIEW_TIP = 'Pick a spot to explore', ZOOM_IN = 0.5, FLY_TIME = 1.4;   // ZOOM_IN: share of the way the camera flies toward a section
 const overview = { pos: new THREE.Vector3(), look: new THREE.Vector3() }, camLook = new THREE.Vector3();
@@ -665,7 +701,7 @@ function comicBurst(s, i) {
       <polygon points="${pts.join(' ')}" fill="${s.burst}" stroke="#111" stroke-width="5" stroke-linejoin="round"/>
       <polygon points="${pts.join(' ')}" fill="url(#${id}d)" mask="url(#${id}m)"/>
       <g transform="rotate(-6) skewX(-8)" font-family="Bangers, Impact, 'Arial Black', sans-serif" font-weight="400"
-         font-size="50" text-anchor="middle" letter-spacing="1">
+         font-size="${Math.min(50, 560 / s.sign.length).toFixed(1)}" text-anchor="middle" letter-spacing="1">
         <text y="17" x="4" dy="4" fill="#111" stroke="#111" stroke-width="10" stroke-linejoin="round"></text>
         <text y="17" fill="${s.ink}" stroke="#111" stroke-width="7" stroke-linejoin="round" paint-order="stroke"></text>
         <text y="17" fill="none" stroke="#fff" stroke-width="1.6" opacity=".55" transform="translate(-1.5 -2)"></text>
@@ -696,7 +732,7 @@ async function enterRoom() {
   const clock2 = new THREE.Clock();
   renderer.setAnimationLoop(() => {
     const dt = Math.min(clock2.getDelta(), 0.05);
-    mixer.update(dt); mechMixer?.update(dt);
+    mixer.update(dt); for (const m of mixers) m.update(dt);
     updateLoftView(dt);
     renderer.render(loft, loftCam);
   });

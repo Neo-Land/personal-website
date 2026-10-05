@@ -248,3 +248,22 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   Email exposure trimmed: SITE.email in app.js is assembled from two parts at runtime (no "x@y" string for harvesters
   scanning the JS; the page HTML never contained it — the Contact section is rendered by JS). security.txt uses the
   tagged alias nehe.landav+security@gmail.com so any leak is traceable/filterable. resume.pdf keeps the real address.
+## Coat tree replaces the rack + nightstand (2026-10-05)
+  The rolling rack, wooden hanger, nightstand and its lamp are gone. buildNook() now builds a dark-cherry coat tree in
+  code (turned post with collars, four splayed feet, two tiers of upturned pegs with ball tips, finial) at NOOK.x -0.4:
+  suit hooked on the long front peg, fedora on the finial, mask on a long right-side peg turned toward the room.
+  Signs moved so nothing covers the hat: "Hobbies!" beside the hat (left), "Smokin'!" beside the trousers. Hotspot +
+  look point now centre on chair + tree.
+## Open sections stand alone (2026-10-05)
+  fadeSections(): while a section is open, the other sections' props fade out over 0.5 s (PROPS map: globe → seated
+  Neo, car → car corner, hobbies → nook) by scaling each material's opacity (original opacity/transparent kept in
+  material.userData), and fade back when you return to the overview. Hobby nook pushed into the back-right corner
+  (z -1.8 on all screens; 0.45 / 0.75 in from the window wall on phones / wide screens).
+  Phones (2026-10-05): layoutRoom shifts the nook so the coat tree stands 0.32 m out from the back-right corner and
+  places the swordsman's chair (via worldToLocal) at world (0.5, BACK + 0.4), nearly against the back wall. The
+  Hobbies camera now looks at the midpoint between chair and coat tree (same as before on wide screens).
+  Phones: nook and chair are each turned to face the overview camera (atan2 toward overview.pos), so the suit and
+  the swordsman face front. Mask moved to a long left-side peg (toward the camera) so the suit never hides it.
+  Mask now hangs from the upper-left peg just behind the suit, peeking out over the left shoulder. "Hobbies!" sign
+  moved up-left of the hat, and the wide-screen Hobbies camera aims higher (look y 0.8) so the signs aren't pushed
+  down by the top-menu clamp onto the mask.

@@ -139,8 +139,8 @@ function makeSlit() {
 let neo, mixer, walk, idle, hit, ticket, slit, skinned, spots, neoClips;
 let tear = 0, opening = 0, drag = null;    // tear 0→1 follows the drag; opening 0→1 is the bloom into white
 const whiteEl = document.getElementById('white'), hintEl = document.getElementById('hint');
-const startEl = document.getElementById('start');                 // "click Neo to begin", shown once he's walking
-startEl.textContent = matchMedia('(hover: none)').matches ? 'Tap Neo to begin' : 'Click Neo to begin';
+const startEl = document.getElementById('start');                 // "click me to begin", shown once he's walking
+startEl.textContent = matchMedia('(hover: none)').matches ? 'Tap me to begin' : 'Click me to begin';
 
 // ══ YOUR CONTENT — edit everything in SITE; the panel is built from it ═══════════════════
 const SITE = {
@@ -472,7 +472,7 @@ function buildLoft() {
   const hotspot = (geo) => new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ visible: false }));
   walls.globeHit = hotspot(new THREE.SphereGeometry(GLOBE_R * 1.3)); walls.globeHit.position.copy(GLOBE_AT); loft.add(walls.globeHit);
   walls.carHit = hotspot(new THREE.BoxGeometry(1.4, 1.2, 3.4)); walls.carHit.position.set(0, 0.6, 0.2); walls.car.add(walls.carHit);
-  walls.nookHit = hotspot(new THREE.BoxGeometry(2.5, 1.35, 1.0)); walls.nookHit.position.set(-0.25, 0.67, 0.15); walls.nook.add(walls.nookHit);
+  walls.nookHit = hotspot(new THREE.BoxGeometry(1.5, 1.45, 1.0)); walls.nookHit.position.set(-0.75, 0.72, 0.15); walls.nook.add(walls.nookHit);
   loft.add(new THREE.HemisphereLight(0xffc896, 0x140c08, 0.35));
   const fill = new THREE.DirectionalLight(0xffa860, 0.4);                  // faint warm front fill so Neo isn't a silhouette
   fill.position.set(-1.5, 2, 4);
@@ -506,51 +506,45 @@ function loadCarCorner(group) {
     const m = new THREE.AnimationMixer(mech); m.clipAction(g.animations[0]).play(); mixers.push(m);
   });
 }
-// The hobby nook — a homage, not a replica: the yellow zoot suit (mannequin stripped out in Blender) hangs on a rolling
-// garment rack with the fedora resting on the hanger hook, and an original carved green mask leans on a nightstand
-// under a little lamp. Local layout: rack on the left, nightstand on the right, everything facing +z.
-const NOOK = { bar: 1.06, rackX: -0.3, standX: 0.5 };
+// The hobby nook — a homage, not a replica: the yellow zoot suit (mannequin stripped out in Blender) hangs from a
+// wooden coat tree with the fedora on top and an original carved green mask on a side peg. Local layout: chair on the
+// left, coat tree on the right, everything facing +z.
+const NOOK = { x: -0.4, top: 1.3, peg: 1.08 };                       // coat tree position, post height, upper peg tier
 function buildNook(group) {
-  const { bar, rackX, standX } = NOOK;
-  const steel = new THREE.MeshStandardMaterial({ color: 0x1a1b1e, metalness: 0.8, roughness: 0.35 });
+  const { x, top, peg } = NOOK;
   const wood = new THREE.MeshStandardMaterial({ color: 0x5a3822, roughness: 0.55 });
-  const brass = new THREE.MeshStandardMaterial({ color: 0xc89b4a, metalness: 0.9, roughness: 0.3 });
-  const add = (geo, mat, x, y, z, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, 0, rz); m.castShadow = m.receiveShadow = true; group.add(m); return m; };
-  const rod = (len, r = 0.014) => new THREE.CylinderGeometry(r, r, len, 12);
+  const tree = new THREE.MeshStandardMaterial({ color: 0x4a1f16, roughness: 0.45 });   // dark cherry, like the reference
+  const add = (geo, mat, px, py, pz, rx = 0, rz = 0, ry = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.rotation.set(rx, ry, rz, 'YXZ'); m.castShadow = m.receiveShadow = true; group.add(m); return m; };
   const add2 = (parent, geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
-  // rolling rack: two uprights, top bar, two feet with casters
-  for (const sx of [-1, 1]) {
-    const x = rackX + sx * 0.46;
-    add(rod(bar), steel, x, bar / 2 + 0.05, 0);
-    add(rod(0.44), steel, x, 0.06, 0, Math.PI / 2);
-    for (const sz of [-1, 1]) add(new THREE.CylinderGeometry(0.03, 0.03, 0.025, 14), steel, x, 0.03, sz * 0.2, 0, Math.PI / 2);
+  // coat tree: turned post with collars, four splayed feet, two tiers of upturned pegs with round tips, a finial
+  add(new THREE.CylinderGeometry(0.02, 0.026, top - 0.1, 14), tree, x, 0.1 + (top - 0.1) / 2, 0);
+  for (const y of [0.18, 0.46, 0.78]) add(new THREE.CylinderGeometry(0.03, 0.03, 0.035, 14), tree, x, y, 0);
+  add(new THREE.SphereGeometry(0.026, 14, 10), tree, x, top, 0);
+  const pegAt = (y, a, len = 0.15, tilt = 0.95) => {     // a = heading around the post (0 = +z), tilt = angle from vertical
+    const dir = new THREE.Vector3(Math.sin(a) * Math.sin(tilt), Math.cos(tilt), Math.cos(a) * Math.sin(tilt));
+    const tip = new THREE.Vector3(x, y, 0).addScaledVector(dir, len);
+    add(new THREE.CylinderGeometry(0.009, 0.011, len, 8), tree, x + dir.x * len / 2, y + dir.y * len / 2, dir.z * len / 2, tilt, 0, a);
+    add(new THREE.SphereGeometry(0.014, 10, 8), tree, tip.x, tip.y, tip.z);
+    return tip;
+  };
+  const tips = [];
+  for (let i = 0; i < 4; i++) {
+    add(new THREE.BoxGeometry(0.03, 0.03, 0.3), tree, x + Math.sin(i * Math.PI / 2 + Math.PI / 4) * 0.12, 0.075, Math.cos(i * Math.PI / 2 + Math.PI / 4) * 0.12, 0.5, 0, i * Math.PI / 2 + Math.PI / 4);
+    tips.push(pegAt(peg, i * Math.PI / 2, i ? 0.13 : 0.16));
   }
-  add(rod(0.96), steel, rackX, bar + 0.05, 0, 0, Math.PI / 2);
-  // wooden hanger: curved shoulders + a hook stem up to the bar (the hat sits on the hook)
-  const shoulders = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-0.21, -0.12, 0), new THREE.Vector3(0, -0.03, 0), new THREE.Vector3(0.21, -0.12, 0));
-  add(new THREE.TubeGeometry(shoulders, 20, 0.013, 8), wood, rackX, bar + 0.05, 0);
-  add(rod(0.08, 0.005), brass, rackX, bar + 0.04, 0);
-  // nightstand: box on short legs, a drawer with a brass knob, and a small lamp
-  const top = 0.5;
-  add(new THREE.BoxGeometry(0.44, 0.38, 0.38), wood, standX, top - 0.19, 0);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(new THREE.BoxGeometry(0.035, 0.12, 0.035), wood, standX + sx * 0.19, 0.06, sz * 0.16);
-  add(new THREE.BoxGeometry(0.38, 0.13, 0.01), new THREE.MeshStandardMaterial({ color: 0x4a2d1b, roughness: 0.6 }), standX, top - 0.12, 0.192);
-  add(new THREE.SphereGeometry(0.014, 12, 8), brass, standX, top - 0.12, 0.2);
-  add(new THREE.CylinderGeometry(0.035, 0.05, 0.03, 16), brass, standX + 0.13, top + 0.015, -0.08);
-  add(rod(0.2, 0.007), brass, standX + 0.13, top + 0.12, -0.08);
-  add(new THREE.CylinderGeometry(0.05, 0.085, 0.09, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0xf3dfb8, emissive: 0xffb45a, emissiveIntensity: 0.6, side: THREE.DoubleSide }), standX + 0.13, top + 0.23, -0.08);
-  const lamp = new THREE.PointLight(0xffb45a, 1.4, 1.6, 1.8);
-  lamp.position.set(standX + 0.13, top + 0.2, -0.08); group.add(lamp);
+  const maskPeg = tips[3];                                                       // upper left peg, just behind the suit
+  for (const a of [0.8, 1.9, 3.4, 5.2]) pegAt(peg - 0.26, a, 0.13);
   const loader = new GLTFLoader(), dress = (o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; };
   loader.load('suit.glb', (g) => {
     g.scene.traverse(dress);
     const suit = g.scene.getObjectByName('suit'), hat = g.scene.getObjectByName('hat');
-    suit.scale.setScalar(1.08); suit.position.set(rackX, bar + 0.02, 0);         // origin = collar top, under the hook
-    hat.scale.setScalar(1.08); hat.position.set(rackX, bar + 0.075, 0); hat.rotation.set(-0.12, 0.3, 0.1);  // tipped on the hook
+    suit.scale.setScalar(1.08); suit.position.set(x, peg + 0.08, 0.14);              // collar hooked on the front peg
+    hat.scale.setScalar(1.08); hat.position.set(x, top - 0.03, 0); hat.rotation.set(-0.1, 0.3, 0.12);  // tipped on the finial
     group.add(suit, hat);
   });
-  loader.load('mask.glb', (g) => {                                               // leaning back against the lamp side
-    g.scene.scale.setScalar(0.16); g.scene.position.set(standX - 0.05, top, 0.04); g.scene.rotation.set(-0.32, -0.25, 0);
+  loader.load('mask.glb', (g) => {                                               // hung by its strap, peeking out over the left shoulder
+    g.scene.scale.setScalar(0.16); g.scene.position.set(maskPeg.x - 0.05, maskPeg.y - 0.09, -0.06);
+    g.scene.rotation.set(0.06, -0.3, 0);                                         // face turned toward the room
     g.scene.traverse(dress); group.add(g.scene);
   });
   // swashbuckler Neo slouched on a wooden chair (pose keyframed in Blender), gripping his rapier (modelled in
@@ -592,12 +586,21 @@ function layoutRoom() {
   walls.globeHit.position.copy(GLOBE_AT); walls.glow.position.copy(GLOBE_AT);
   if (neo.parent === loft) neo.position.x = GLOBE_AT.x;
   // hobby nook by the windows, turned most of the way toward the camera
-  walls.nook.position.set(roomHalf - (a < 1 ? 0.5 : 0.85), 0, a < 1 ? -1.1 : -1.3);
-  walls.nook.rotation.y = a < 1 ? -Math.PI / 2 + 0.6                     // narrow screens: runs along the right wall, angled out
-    : 0.75 * Math.atan2(overview.pos.x - walls.nook.position.x, overview.pos.z - walls.nook.position.z);
-  // the swordsman's chair, left of the rack (tucked in closer on phones, where the room is narrow)
-  walls.seat.position.set(a < 1 ? -0.92 : -1.12, 0, a < 1 ? 0.4 : 0.3);
+  walls.nook.position.set(roomHalf - 0.75, 0, -1.8);
+  walls.nook.rotation.y = 0.75 * Math.atan2(overview.pos.x - walls.nook.position.x, overview.pos.z - walls.nook.position.z);
+  // the swordsman's chair, left of the coat tree
+  walls.seat.position.set(-1.12, 0, 0.3); walls.seat.rotation.y = 0;
   walls.nook.updateMatrixWorld();
+  if (a < 1) {   // phones: coat tree tucked into the back-right corner, the swordsman's chair almost against the back wall,
+    // both turned to face the camera
+    walls.nook.rotation.y = Math.atan2(overview.pos.x - (roomHalf - 0.32), overview.pos.z - (BACK + 0.32));
+    walls.nook.updateMatrixWorld();
+    const tree = walls.nook.localToWorld(new THREE.Vector3(NOOK.x, 0, 0));
+    walls.nook.position.x += roomHalf - 0.32 - tree.x; walls.nook.position.z += BACK + 0.32 - tree.z;
+    walls.nook.updateMatrixWorld();
+    walls.seat.position.copy(walls.nook.worldToLocal(new THREE.Vector3(0.5, 0, BACK + 0.4)));
+    walls.seat.rotation.y = Math.atan2(overview.pos.x - 0.5, overview.pos.z - BACK - 0.4) - walls.nook.rotation.y;
+  }
   if (!fly) { globeK = globeKFor(focus); setCam(...viewOf(focus)); }
 }
 function setCam(pos, look) {
@@ -621,13 +624,13 @@ const SECTIONS = [
   { id: 'car', sign: 'Projects!', burst: '#ff8a1f', ink: '#29a9ef', tip: 'Garage under construction · more soon',
     look: () => walls.car.localToWorld(new THREE.Vector3(0, 0.4, 0.5)), signAt: () => walls.car.localToWorld(new THREE.Vector3(0, 1.05, 0.3)), hits: () => [walls.carHit] },
   { id: 'hobbies', sign: 'Hobbies!', burst: '#4fc35a', ink: '#ffd400', tip: 'Off the clock · more soon',
-    look: () => walls.nook.localToWorld(new THREE.Vector3(-0.3, 0.5, 0.15)),
+    look: () => walls.seat.localToWorld(new THREE.Vector3()).lerp(walls.nook.localToWorld(new THREE.Vector3(NOOK.x, 0, 0)), 0.5).setY(innerWidth < innerHeight ? 0.55 : 0.8),   // between chair and coat tree (aimed higher on wide screens: room for the signs)
     // phones: come in high, from straight in front of the nook, so the seated Neo doesn't block the view
-    eye: () => innerWidth < innerHeight ? overview.pos.clone().lerp(walls.nook.position, 0.6).setY(1.9) : undefined, signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX, NOOK.bar + 0.42, 0)), hits: () => [walls.nookHit] },
+    eye: () => innerWidth < innerHeight ? overview.pos.clone().lerp(walls.nook.position, 0.6).setY(1.9) : undefined, signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.x - 0.42, NOOK.top + 0.32, 0)), hits: () => [walls.nookHit] },
 ];
 // Decorative bursts (not clickable) that pop up only while their section is in focus
 const DECOR = [
-  { section: 'hobbies', sign: "Smokin'!", burst: '#e8282b', ink: '#ffd400', signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX + 0.36, NOOK.bar - 0.12, 0.2)) },
+  { section: 'hobbies', sign: "Smokin'!", burst: '#e8282b', ink: '#ffd400', signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.x + 0.32, 0.45, 0.2)) },
   { section: 'hobbies', sign: 'As you wish!', burst: '#ff7ab8', ink: '#ffffff', signAt: () => walls.seat.localToWorld(new THREE.Vector3(0, 1.02, 0)) },
 ];
 const OVERVIEW_TIP = 'Pick a spot to explore', ZOOM_IN = 0.5, FLY_TIME = 1.4;   // ZOOM_IN: share of the way the camera flies toward a section
@@ -655,6 +658,22 @@ function goTo(id) {
 backEl.onclick = () => goTo(null);
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && focus && !folio.open) goTo(null); });
 const flyPos = new THREE.Vector3(), flyLook = new THREE.Vector3();
+// While a section is open, the other sections' 3D props fade out so nothing peeks into its view
+const PROPS = { globe: () => [neo], car: () => [walls.car], hobbies: () => [walls.nook] };
+function fadeSections(dt) {
+  for (const s of SECTIONS) for (const o of PROPS[s.id]()) {
+    const want = focus && focus !== s.id ? 0 : 1, op = o.userData.op ?? 1;
+    if (op === want) continue;
+    const next = o.userData.op = calm ? want : THREE.MathUtils.clamp(op + Math.sign(want - op) * dt / 0.5, 0, 1);
+    o.visible = next > 0;
+    o.traverse((m) => { for (const mat of m.material ? [].concat(m.material) : []) {
+      mat.userData.op0 ??= mat.opacity; mat.userData.tr0 ??= mat.transparent;
+      const tr = mat.userData.tr0 || next < 1;
+      if (tr !== mat.transparent) { mat.transparent = tr; mat.needsUpdate = true; }
+      mat.opacity = mat.userData.op0 * next;
+    } });
+  }
+}
 function updateLoftView(dt) {
   if (fly) {
     fly.t = Math.min(1, fly.t + dt / (calm ? 1e-3 : FLY_TIME));
@@ -664,6 +683,7 @@ function updateLoftView(dt) {
     world?.pointOfView({ altitude: homeAltitude });                     // keep the globe's size matched to the camera
     if (fly.t === 1) fly = null;
   }
+  fadeSections(dt);
   for (const s of [...SECTIONS, ...DECOR]) {                            // signs follow their spot on screen
     if (!s.el) continue;
     const v = s.signAt().project(loftCam);

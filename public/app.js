@@ -161,7 +161,7 @@ const SITE = {
     { title: 'ColorStack @ Montclair State', blurb: 'Chapter website and recognition proposal for a new ColorStack chapter, growing the pipeline of Black and Latinx students in computing on campus.',
       tags: ['Web', 'Leadership'], live: '', code: 'https://github.com/Neo-Land/colorstack-msu', image: '' },
   ],
-  email: 'nehe.landav@gmail.com',
+  email: ['nehe.landav', 'gmail.com'].join('@'),   // split so email-harvesting bots scanning this file don't match it
   linkedin: 'https://www.linkedin.com/in/nehemiaslandaverde/',
   github: 'https://github.com/Neo-Land',
   resume: 'resume.pdf',                               // phone-free copy of the résumé

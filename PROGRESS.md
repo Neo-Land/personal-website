@@ -245,3 +245,6 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   Added public/.well-known/security.txt (RFC 9116) — Expires 2027-10-01, renew before then.
   Cloudflare Bot Fight Mode / AI Labyrinth left off on purpose (static site; BFM can challenge link-preview bots and
   its injected script would be blocked by our CSP).
+  Email exposure trimmed: SITE.email in app.js is assembled from two parts at runtime (no "x@y" string for harvesters
+  scanning the JS; the page HTML never contained it — the Contact section is rendered by JS). security.txt uses the
+  tagged alias nehe.landav+security@gmail.com so any leak is traceable/filterable. resume.pdf keeps the real address.

@@ -238,3 +238,10 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   adjusted in layoutRoom, with its hotspot + blue light) to open a gap; the hobby nook turns to run along the right
   wall (rotation -90°+0.6) so swordsman, suit and nightstand spread into depth, same left-to-right order. The phone
   Hobbies camera now comes from 60% of the way along the overview line, raised to 1.9. Wide screens unchanged.
+## Domain hygiene (2026-10-05)
+  External check: headers, HTTPS redirect, TLS 1.2/1.3 only, cert (Google Trust Services, renews automatically),
+  DNSSEC, private files 404 — all good. Email spoofing locked down in Cloudflare DNS (no email on this domain):
+  TXT @ "v=spf1 -all", TXT _dmarc "v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s", TXT *._domainkey "v=DKIM1; p=".
+  Added public/.well-known/security.txt (RFC 9116) — Expires 2027-10-01, renew before then.
+  Cloudflare Bot Fight Mode / AI Labyrinth left off on purpose (static site; BFM can challenge link-preview bots and
+  its injected script would be blocked by our CSP).

@@ -128,7 +128,9 @@
   #hint, #start { position: fixed; left: 0; right: 0; bottom: max(28px, env(safe-area-inset-bottom)); text-align: center;
     color: rgba(255, 255, 255, .75); font: 500 13px/1 system-ui, -apple-system, sans-serif; letter-spacing: .28em;
     text-transform: uppercase; opacity: 0; transition: opacity .6s; pointer-events: none; }
-  #start { font-size: 15px; color: #fff; }
+  #start { font: 700 13px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .12em; color: rgba(236, 240, 248, .82); }
+  @media (max-width: 560px) {   /* phones: right-aligned, just above "Skip intro" */
+    #start { left: auto; right: calc(max(18px, env(safe-area-inset-right)) + 10px); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 44px); } }
   #hint.on, #start.on { opacity: 1; animation: nudge 1.6s ease-in-out infinite; }
   @keyframes nudge { 50% { transform: translateY(6px); } }
   @media (prefers-reduced-motion: reduce) { #hint.on, #start.on, #intro, #intro i { animation: none; } }

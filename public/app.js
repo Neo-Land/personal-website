@@ -219,7 +219,6 @@ function skipIntro() {                     // straight to the loft (for visitors
 
 // ── Typed greeting (starts on page load) ──────────────────────────
 const GREETINGS = [
-  [['en', 'Welcome, friend...'], ['it', 'Benvenuto, amico...'], ['es', 'Bienvenido, amigo...'], ['ja', 'ようこそ、友よ…']],
   [['en', 'This is Nehemias'], ['it', 'Questo è Nehemias'], ['es', 'Este es Nehemias'], ['ja', 'こちらはネヘミアスです']],
 ];
 const introEl = document.getElementById('intro');
@@ -244,18 +243,8 @@ const introEl = document.getElementById('intro');
       await wait(260);
     }
   }
-  async function erase() {
-    for (let i = lines.length - 1; i >= 0; i--) {
-      put(i);
-      while (lines[i].lastChild) { lines[i].lastChild.remove(); await wait(quick ? 0 : 22); }
-    }
-  }
   await wait(500);
   await type(GREETINGS[0]);
-  await wait(1800);
-  await erase();
-  await wait(400);
-  await type(GREETINGS[1]);
 })();
 
 // ── White room + globe (beat 7) ───────────────────────────────────

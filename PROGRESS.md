@@ -232,3 +232,9 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   "Click Neo to begin" (or "Tap…" on touch screens, via hover:none) fades in 1.8 s after Neo starts walking and is
   removed on tap/skip (#start, styled like #hint, a bit larger). Section signs are clamped so their top never goes
   above 64 px (the menu) — on wide MacBook screens "About me!" used to be cut off at the top.
+## Narrow-screen declutter (2026-10-05)
+  Portrait screens (aspect < 1): the globe overlay is drawn at 55% size in the overview and grows to full size while
+  flying into "About me" (globeK, lerped with the camera). Seated Neo + globe shift to x = -0.22 (GLOBE_AT is now
+  adjusted in layoutRoom, with its hotspot + blue light) to open a gap; the hobby nook turns to run along the right
+  wall (rotation -90°+0.6) so swordsman, suit and nightstand spread into depth, same left-to-right order. The phone
+  Hobbies camera now comes from 60% of the way along the overview line, raised to 1.9. Wide screens unchanged.

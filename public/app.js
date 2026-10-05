@@ -481,7 +481,7 @@ function buildLoft() {
   Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.5, far: 16 });
   loft.add(sun, sun.target);
   const glow = new THREE.PointLight(0x4d8dff, 2.6, 3.2, 1.8);             // the globe's blue light spilling onto Neo and the floor
-  glow.position.copy(GLOBE_AT);
+  glow.position.copy(GLOBE_AT); walls.glow = glow;
   loft.add(glow);
 }
 // The car corner: a Tripo coupe (cabin flattened in Blender, hood up) with mechanic Neo bent over the engine
@@ -585,19 +585,24 @@ function layoutRoom() {
   walls.car.position.set(-roomHalf + (a < 1 ? 0.7 : 1.1), 0, BACK + (a < 1 ? 1.5 : 1.15));
   walls.car.rotation.y = Math.PI / 2 - (a < 1 ? 1.2 : 0.7);
   walls.car.updateMatrixWorld();
+  // narrow screens: seated Neo + globe shift a little left, opening a gap so the hobby nook shows beside them
+  GLOBE_AT.x = a < 1 ? -0.22 : 0;
+  walls.globeHit.position.copy(GLOBE_AT); walls.glow.position.copy(GLOBE_AT);
+  if (neo.parent === loft) neo.position.x = GLOBE_AT.x;
   // hobby nook by the windows, turned most of the way toward the camera
-  walls.nook.position.set(roomHalf - (a < 1 ? 0.62 : 0.85), 0, a < 1 ? -2.1 : -1.3);
-  walls.nook.rotation.y = 0.75 * Math.atan2(overview.pos.x - walls.nook.position.x, overview.pos.z - walls.nook.position.z);
+  walls.nook.position.set(roomHalf - (a < 1 ? 0.5 : 0.85), 0, a < 1 ? -1.1 : -1.3);
+  walls.nook.rotation.y = a < 1 ? -Math.PI / 2 + 0.6                     // narrow screens: runs along the right wall, angled out
+    : 0.75 * Math.atan2(overview.pos.x - walls.nook.position.x, overview.pos.z - walls.nook.position.z);
   // the swordsman's chair, left of the rack (tucked in closer on phones, where the room is narrow)
   walls.seat.position.set(a < 1 ? -0.92 : -1.12, 0, a < 1 ? 0.4 : 0.3);
   walls.nook.updateMatrixWorld();
-  if (!fly) setCam(...viewOf(focus));
+  if (!fly) { globeK = globeKFor(focus); setCam(...viewOf(focus)); }
 }
 function setCam(pos, look) {
   loftCam.position.copy(pos); camLook.copy(look); loftCam.lookAt(look);
   loftCam.updateMatrixWorld();                                          // project() below needs the new view
   // globe overlay: centre on GLOBE_AT, sized to GLOBE_R as seen by this camera
-  const c = GLOBE_AT.clone().project(loftCam), up = GLOBE_AT.clone().add(new THREE.Vector3(0, GLOBE_R, 0)).project(loftCam);
+  const c = GLOBE_AT.clone().project(loftCam), up = GLOBE_AT.clone().add(new THREE.Vector3(0, GLOBE_R * globeK, 0)).project(loftCam);
   const rFrac = (up.y - c.y);                                           // radius as a fraction of the half-height
   document.getElementById('float').style.transform = `translate(${c.x * innerWidth / 2}px, ${-c.y * innerHeight / 2}px)`;
   document.getElementById('float').style.setProperty('--gd', `${rFrac * innerHeight}px`);
@@ -610,13 +615,13 @@ const homeView = () => ({ lat: 25, lng: 10, altitude: homeAltitude });
 // camera in, and only then does that section respond (the globe only spins once you've zoomed to it).
 const SECTIONS = [
   { id: 'globe', sign: 'About me!', burst: '#ffd400', ink: '#e8282b', tip: 'Spin the globe · pick a pin',
-    look: () => new THREE.Vector3(0, 0.58, 0), signAt: () => GLOBE_AT.clone().setY(GLOBE_AT.y + GLOBE_R + 0.42), hits: () => [hit, walls.globeHit] },
+    look: () => new THREE.Vector3(GLOBE_AT.x, 0.58, 0), signAt: () => GLOBE_AT.clone().setY(GLOBE_AT.y + GLOBE_R + 0.42), hits: () => [hit, walls.globeHit] },
   { id: 'car', sign: 'Projects!', burst: '#ff8a1f', ink: '#29a9ef', tip: 'Garage under construction · more soon',
     look: () => walls.car.localToWorld(new THREE.Vector3(0, 0.4, 0.5)), signAt: () => walls.car.localToWorld(new THREE.Vector3(0, 1.05, 0.3)), hits: () => [walls.carHit] },
   { id: 'hobbies', sign: 'Hobbies!', burst: '#4fc35a', ink: '#ffd400', tip: 'Off the clock · more soon',
-    look: () => walls.nook.localToWorld(new THREE.Vector3(innerWidth < innerHeight ? -0.2 : -0.3, 0.5, 0.15)),
+    look: () => walls.nook.localToWorld(new THREE.Vector3(-0.3, 0.5, 0.15)),
     // phones: come in high, from straight in front of the nook, so the seated Neo doesn't block the view
-    eye: () => innerWidth < innerHeight ? walls.nook.localToWorld(new THREE.Vector3(-0.2, 2.1, 5.2)) : undefined, signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX, NOOK.bar + 0.42, 0)), hits: () => [walls.nookHit] },
+    eye: () => innerWidth < innerHeight ? overview.pos.clone().lerp(walls.nook.position, 0.6).setY(1.9) : undefined, signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.rackX, NOOK.bar + 0.42, 0)), hits: () => [walls.nookHit] },
 ];
 // Decorative bursts (not clickable) that pop up only while their section is in focus
 const DECOR = [
@@ -625,7 +630,9 @@ const DECOR = [
 ];
 const OVERVIEW_TIP = 'Pick a spot to explore', ZOOM_IN = 0.5, FLY_TIME = 1.4;   // ZOOM_IN: share of the way the camera flies toward a section
 const overview = { pos: new THREE.Vector3(), look: new THREE.Vector3() }, camLook = new THREE.Vector3();
-let focus = null, fly = null;
+let focus = null, fly = null, globeK = 1;
+// on narrow screens the globe stays small in the overview (it crowds the room) and grows when "About me" is opened
+const globeKFor = (id) => id === 'globe' || innerWidth >= innerHeight ? 1 : 0.55;
 const viewOf = (id) => {
   if (!id) return [overview.pos.clone(), overview.look.clone()];
   const sec = SECTIONS.find((s) => s.id === id), look = sec.look();
@@ -635,7 +642,7 @@ const tipEl = roomEl.querySelector('.tip'), backEl = document.getElementById('ba
 function goTo(id) {
   if (focus === 'globe' && !cardEl.hidden) cardEl.querySelector('.x').click();
   focus = id;
-  fly = { t: 0, from: [loftCam.position.clone(), camLook.clone()], to: viewOf(id) };
+  fly = { t: 0, from: [loftCam.position.clone(), camLook.clone()], to: viewOf(id), k: [globeK, globeKFor(id)] };
   roomEl.dataset.focus = id || '';
   roomEl.classList.remove('picked');
   roomEl.classList.toggle('away', !!id && id !== 'globe');                // globe overlay fades while another section is in view
@@ -650,6 +657,7 @@ function updateLoftView(dt) {
   if (fly) {
     fly.t = Math.min(1, fly.t + dt / (calm ? 1e-3 : FLY_TIME));
     const e = ease(fly.t);
+    globeK = THREE.MathUtils.lerp(fly.k[0], fly.k[1], e);
     setCam(flyPos.lerpVectors(fly.from[0], fly.to[0], e), flyLook.lerpVectors(fly.from[1], fly.to[1], e));
     world?.pointOfView({ altitude: homeAltitude });                     // keep the globe's size matched to the camera
     if (fly.t === 1) fly = null;
@@ -715,7 +723,7 @@ async function enterRoom() {
   layoutRoom();
   // Neo walks out of the void into the loft and sits down under the globe
   loft.add(neo);
-  neo.position.set(0, 0, 0.15); neo.rotation.set(0, 0, 0);
+  neo.position.set(GLOBE_AT.x, 0, 0.15); neo.rotation.set(0, 0, 0);
   neo.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   ticket.visible = slit.visible = false;
   mixer.stopAllAction();

@@ -13,7 +13,7 @@
 
 ## Step 2: IN PROGRESS
 - 2026-09-30: Blender connection re-verified (Camera, Cube, Light).
-- neo_front/side/back.png cropped from ~/Downloads/neo2005avatarfull.jpeg (turnaround sheet, A-pose).
+- neo_front/side/back.png cropped from ~/Downloads/Portfolio Website Assets/neo2005avatarfull.jpeg (turnaround sheet, A-pose).
   Multi-Views in Tripo needs a paid plan; free = neo_front.png single-image.
 - neofrontv2.jpeg = Gemini upscale of front view (848x1264) — best single-image input.
 - Tripo free: H2.5 looked bad (face melted); H3.1 looked great but export needs paid plan.
@@ -269,14 +269,14 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   down by the top-menu clamp onto the mask.
 ## Coin flip replaces the ticket + seam (2026-10-05)
   The ticket tear didn't suit a professional portfolio. New beat: tap Neo → his hackathon-winner coin (Tripo,
-  ~/Downloads/HackathonWinnerCoin.zip → coin_raw/, gitignored) floats out of his pocket on the old ticket arc and
+  ~/Downloads/Portfolio Website Assets/HackathonWinnerCoin.zip → coin_raw/, gitignored) floats out of his pocket on the old ticket arc and
   hovers in front of his chest (COIN_SHOW), swaying; flick up (or tap) → it flips end over end, rises up-right
   (LAUNCH_T 1.7 s) with a camera-facing additive ribbon trail (TRAIL_N points, white head → blue tail), a glow sprite
   that flares at the top, and a golden-angle starfield fading in; the white fade then enters the loft as before.
   coin.glb built by scratchpad coin_build.py (Blender CLI): decimated 49k → 14k faces, diameter 1, face +Z, 1K JPEG
   textures (1.0 MB); gets its own RoomEnvironment env map so the gold reads. Ticket, slit, FLY_* and tear code removed.
   README screenshots 2-ticket / 3-tear dropped from the table (files still in docs/).
-  Update (same day): Neo now picks the coin up. ~/Downloads/Lifting.fbx (Mixamo "Lifting", With Skin on Neo's own
+  Update (same day): Neo now picks the coin up. ~/Downloads/Portfolio Website Assets/Lifting.fbx (Mixamo "Lifting", With Skin on Neo's own
   mesh, 135 f @ 30 fps, same 41-bone rig, bone lengths ratio 1.0) → public/lift.glb (118 KB, skeleton + animation only,
   exported from a copy of neo.blend so neo.glb is untouched; tracks bind to Neo's bones by name). app.js plays a subclip
   to frame 88 (LoopOnce, clamped): hand touches the floor ~f43 (LIFT_GRAB), coin held out ~f88. Coin lies flat at

@@ -350,3 +350,11 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   Testing note: the hidden preview pane runs ~2 fps and dt is capped at 0.05 s, so a 1.4 s flight takes ~14 s there.
   Intro coin shading: its studio env-map reflection dropped 1.4 → 0.35 (COIN_ENV) so the intro's own lights (cool
   hemisphere, white key front-right, blue rim back-left) shape it like Neo — deeper gold, darker lower half, highlights.
+## Site icon: rough denim star (2026-10-06)
+  Replaced the inline "N" data-URI icon. Original drawing (a nod to a manga star birthmark — no traced art, no names):
+  five uneven points with concave curved sides, radial light→base→dark gradient in Neo's jeans colours (#a9bbd6 / #5b77a3 / #1c3560, sampled from the
+  intro render and lifted slightly so it reads on dark tab bars), blotchy
+  stains from low-frequency feTurbulence, speckled edge from blurred alpha + fine noise thresholded. No outline, no
+  background. public/favicon.svg (calm grain, for tabs) + favicon-32.png + apple-touch-icon.png (180, fuller grain),
+  rendered with sharp from the same SVG generator (shape "Sharp": tips [1,.95,1.05,.88,1], jitter [0,2,-3,4,-2],
+  inner .34, tilt −6°, bend .62; viewBox cropped to 6 6 84 84). Preview on dark + light tab bars: docs/favicon-preview.png.

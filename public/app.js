@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { MeshoptDecoder } from './vendor/meshopt/meshopt_decoder.js';
+// every .glb is meshopt-compressed (geometry + animation) with WebP textures — see README "Model compression"
+const gltfLoader = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+// the loft's models, fetched once: started early (as soon as Neo is tapped) so the room is complete when it appears
+const LOFT_MODELS = ['car.glb', 'mechanic.glb', 'suit.glb', 'mask.glb', 'swordsman.glb'], models = {};
+const loadModel = (name) => models[name] ??= gltfLoader().loadAsync(name);
 
 // Tuning knobs
 let rx = 1.3, rz = 0.5;       // walk path: an ellipse, long left↔right (rx) and shallow front↔back (rz); set in resize()
@@ -63,81 +69,73 @@ function addRipple(x, z, t) {
 }
 
 // Neo
-// Ticket: two halves (main + stub) split at the perforation, so the tear (beat 6) can pull them apart
-const TICKET_W = 0.15, TICKET_H = 0.06, PERF = 0.72;   // perforation at 72% of the width
-// Spots on Neo's rest pose (three.js: +Z = his front), measured on the mesh in Blender
-const POCKET = [-0.078, 0.512, 0.038], POCKET_TILT = 0.5;      // his right front pocket; top leans out past the jacket hem
-const FLY_TOP = [0, 0.505, 0.063], FLY_BOT = [0, 0.45, 0.03];  // the seam: just under the belt buckle, downward
-const FLY_GAP = 0.012;                                          // ticket floats this far in front of the seam
-
-function ticketTexture() {
-  const c = document.createElement('canvas'); c.width = 1200; c.height = 480;
-  const g = c.getContext('2d'), px = 1200 * PERF, font = (w, s) => `${w} ${s}px system-ui, -apple-system, Helvetica, Arial, sans-serif`;
-  const label = (s, x, y) => { g.fillStyle = '#7a7f8c'; g.font = font(600, 22); g.fillText(s, x, y); };
-  const value = (s, x, y, size = 40) => { g.fillStyle = '#151a22'; g.font = font(700, size); g.fillText(s, x, y); };
-  const barcode = (x0, x1, y, h) => { let x = x0, n = 7; g.fillStyle = '#151a22';
-    while (x < x1) { n = (n * 37 + 11) % 97; const w = 3 + (n % 4) * 3; g.fillRect(x, y, w, h); x += w + 3 + (n % 3) * 3; } };
-  g.save(); g.beginPath(); g.roundRect(0, 0, 1200, 480, 34); g.clip();
-  g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, 1200, 480);
-  g.fillStyle = '#1d2b53'; g.fillRect(0, 0, 1200, 100);
-  g.fillStyle = '#ffffff'; g.font = font(800, 46); g.fillText('BOARDING PASS', 44, 66);
-  g.font = font(700, 30); g.fillText('NL 2005', px + 36, 62);
-  label('PASSENGER', 44, 150); value('NEHEMIAS', 44, 196);
-  label('FROM', 44, 250); value('EWR', 44, 335, 92);
-  g.fillStyle = '#ff6a3d'; g.font = font(700, 64); g.fillText('✈', 280, 322);
-  label('TO', 400, 250); value('ANY', 400, 335, 92);
-  label('FLIGHT', 640, 150); value('NL 2005', 640, 196, 34);
-  label('GATE', 640, 250); value('B12', 640, 292, 34);
-  label('SEAT', 640, 345); value('1A', 640, 387, 34);
-  barcode(44, 580, 380, 64);
-  label('PASSENGER', px + 36, 150); value('NEHEMIAS', px + 36, 190, 28);
-  label('ROUTE', px + 36, 245); value('EWR → ANY', px + 36, 285, 30);
-  label('SEAT', px + 36, 335); value('1A', px + 36, 372, 30);
-  barcode(px + 36, 1160, 400, 50);
-  g.restore();
-  // perforation: dashed line + notches cut out top and bottom
-  g.strokeStyle = '#a3a3a3'; g.lineWidth = 4; g.setLineDash([14, 12]);
-  g.beginPath(); g.moveTo(px, 40); g.lineTo(px, 440); g.stroke();
-  g.globalCompositeOperation = 'destination-out';
-  for (const y of [0, 480]) { g.beginPath(); g.arc(px, y, 24, 0, Math.PI * 2); g.fill(); }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  return tex;
+// The hackathon-winner coin (Tripo model slimmed in Blender: diameter 1, face toward +Z) lies at his feet; tapping him
+// plays a Mixamo "Lifting" clip (lift.glb, skeleton + animation only) in which he picks it up with his right hand and
+// holds it out. A flick sends it up like a shooting star that slices the screen open into the loft, where it lands.
+const COIN_D = 0.16, COIN_FLOOR = [-0.06, 0.24];                // diameter (big enough to read "HACKATHON WINNER"); where it lies (his right, his forward)
+const COIN_SMALL = 0.45;                                        // its scale lying on the floor; grows to 1 as he lifts it
+const APPROACH_SPEED = 1.7;                                     // walk faster (clip + ground speed) when heading to the coin
+const LIFT_GRAB = 43 / 30, LIFT_HOLD = 88 / 30;                 // s into the clip: hand on the floor / coin held up
+const PALM_TURN = [57 / 30, 83 / 30];                            // s: his hand turns palm-up (keyed in Blender)
+const CHEST_Y = 0.68;                                           // camera aims between his chest and the coin in his hand
+const CLOSE_W = 0.67;                                           // close-up: metres across the smaller screen side
+const LAUNCH_T = 1.25;                                          // s from the flick to full white
+let coinEnv;
+const coin = new THREE.Group(), coinSpin = new THREE.Group();  // coin = where it is, coinSpin = sway / flip
+coin.add(coinSpin); scene.add(coin);
+// from the start it lies small and flat at the centre of his walk; he circles it until you tap him
+coin.scale.setScalar(COIN_SMALL); coin.position.set(0, COIN_D * COIN_SMALL * 0.12, 0); coin.rotation.x = -Math.PI / 2;
+const ripEl = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'rip' }));   // the screen tearing open
+gltfLoader().load('coin.glb', (g) => {
+  const env = coinEnv = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;   // gold needs something to reflect
+  g.scene.traverse((o) => { if (o.isMesh) { o.material.envMap = env; o.material.envMapIntensity = 1.4; } });
+  g.scene.scale.setScalar(COIN_D);
+  coinSpin.add(g.scene);
+});
+const coinGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.18, 'rgba(160,205,255,.85)'); r.addColorStop(1, 'rgba(40,110,255,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})(), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, opacity: 0 }));
+coin.add(coinGlow);
+// Shooting-star trail: a camera-facing ribbon through the coin's recent positions, wide + white at the head,
+// thin + blue at the tail (additive, so it glows on the black)
+const TRAIL_N = 48;
+const trailGeo = new THREE.BufferGeometry();
+trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TRAIL_N * 6), 3));
+trailGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(TRAIL_N * 6), 3));
+trailGeo.setIndex(Array.from({ length: TRAIL_N - 1 }, (_, i) => [i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2]).flat());
+const trail = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false,
+  blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false }));
+trail.frustumCulled = false; trail.visible = false; scene.add(trail);
+const tDir = new THREE.Vector3(), tSide = new THREE.Vector3(), tView = new THREE.Vector3(), tP = new THREE.Vector3();
+function updateTrail(tail, cam) {                                   // straight streak from `tail` up to the coin
+  const pos = trailGeo.attributes.position, col = trailGeo.attributes.color;
+  tDir.subVectors(coin.position, tail);
+  if (tDir.lengthSq() < 1e-10) tDir.set(0, 1, 0);
+  for (let i = 0; i < TRAIL_N; i++) {
+    const f = 1 - i / (TRAIL_N - 1);                                  // 1 at the head → 0 at the tail
+    tP.lerpVectors(tail, coin.position, f);
+    tSide.crossVectors(tDir, tView.subVectors(cam.position, tP)).normalize().multiplyScalar(COIN_D * (0.03 + 0.12 * f ** 2));
+    pos.setXYZ(i * 2, ...tmp.copy(tP).add(tSide).toArray());
+    pos.setXYZ(i * 2 + 1, ...tmp.copy(tP).sub(tSide).toArray());
+    const k = 0.25 + 0.75 * f ** 2, r = (0.2 + 0.8 * f ** 6) * k, g = (0.5 + 0.5 * f ** 3) * k, b = k;
+    col.setXYZ(i * 2, r, g, b); col.setXYZ(i * 2 + 1, r, g, b);
+  }
+  pos.needsUpdate = col.needsUpdate = true;
 }
+// Night sky that fades in as the coin climbs
+const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(Float32Array.from(
+  { length: 900 * 3 }, (_, k) => { const i = Math.floor(k / 3), th = (i * 2.399963) % (Math.PI * 2), u = (i / 900) * 1.15 - 0.15;   // golden-angle spiral: even spread
+    return [14 * Math.sqrt(1 - u * u) * Math.cos(th), 14 * u, 14 * Math.sqrt(1 - u * u) * Math.sin(th)][k % 3]; }), 3)),
+  new THREE.PointsMaterial({ color: 0xcfe0ff, size: 2, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false }));
+stars.visible = false; scene.add(stars);
 
-function makeTicket() {
-  const mat = new THREE.MeshStandardMaterial({ map: ticketTexture(), side: THREE.DoubleSide, alphaTest: 0.5, roughness: 0.55 });
-  const half = (u0, u1) => {
-    const geo = new THREE.PlaneGeometry(TICKET_W * (u1 - u0), TICKET_H);
-    const uv = geo.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setX(i, u0 + uv.getX(i) * (u1 - u0));
-    geo.translate(TICKET_W * ((u0 + u1) / 2 - PERF), 0, 0); // group origin sits on the perforation
-    return new THREE.Mesh(geo, mat);
-  };
-  const t = new THREE.Group();
-  t.userData.main = half(0, PERF); t.userData.stub = half(PERF, 1);
-  t.add(t.userData.main, t.userData.stub);
-  return t;
-}
-
-// The reveal: a glowing white lens along the seam, origin at the top of the seam, length 1 downward, width 1
-function makeSlit() {
-  const shape = new THREE.Shape();
-  shape.moveTo(0, 0); shape.quadraticCurveTo(0.5, -0.5, 0, -1); shape.quadraticCurveTo(-0.5, -0.5, 0, 0);
-  const geo = new THREE.ShapeGeometry(shape, 32);
-  // core draws over the jeans (no depth test) but before the ticket (renderOrder), so the ticket stays in front
-  const core = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, depthTest: false }));
-  const glow = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xcfdcff, toneMapped: false, transparent: true,
-    opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
-  core.renderOrder = 1;
-  glow.scale.set(3, 1.15, 1); glow.position.y = 0.07;
-  const g = new THREE.Group(); g.add(glow, core); g.visible = false;
-  return g;
-}
-
-let neo, mixer, walk, idle, hit, ticket, slit, skinned, spots, neoClips;
-let tear = 0, opening = 0, drag = null;    // tear 0→1 follows the drag; opening 0→1 is the bloom into white
+let neo, mixer, walk, idle, lift, hit, hand, finger, neoClips;
+let launchT = 0, landT = -1, liftUsed = false, faceYaw = 0, drag = null;   // launchT / landT time the flight
+const standAt = new THREE.Vector3();                                       // where he stops to pick the coin up
 const whiteEl = document.getElementById('white'), hintEl = document.getElementById('hint');
 const startEl = document.getElementById('start');                 // "click me to begin", shown once he's walking
 startEl.textContent = matchMedia('(hover: none)').matches ? 'Tap me to begin' : 'Click me to begin';
@@ -158,7 +156,7 @@ const SITE = {
       tags: ['JavaScript', 'three.js', 'Blender', 'Azure', 'Gemini'], live: 'https://hobitual.club', code: 'https://github.com/Alvaro-bit-stack/Hobitual', image: '' },
     { title: 'Gamify.Life', blurb: 'A full-stack app that turns real-life hobbies into an RPG: 121 skills across 10 hobbies as prerequisite graphs, an XP ledger, quests and achievements, inside a retro desktop-OS interface. Server-authoritative progression validated with Zod and committed with Postgres advisory locks, row-level security, and 125+ Vitest/Playwright tests with axe accessibility checks.',
       tags: ['Next.js', 'TypeScript', 'Supabase', 'PostgreSQL', 'Pixi.js'], live: 'https://gamify-life-amber.vercel.app', code: 'https://github.com/Neo-Land/Gamify-Life', image: '' },
-    { title: 'This website', blurb: 'An interactive three.js portfolio: a rigged 3D character, a drag-to-tear boarding pass, and a shadow-lit loft with a pinned globe. Character pipeline from AI image-to-3D (Tripo) through Mixamo rigging and Blender cleanup. Static on Cloudflare with self-hosted dependencies, a strict CSP, HSTS and no trackers.',
+    { title: 'This website', blurb: 'An interactive three.js portfolio: a rigged 3D character, a hackathon-winner coin you flick into a shooting star, and a shadow-lit loft with a pinned globe. Character pipeline from AI image-to-3D (Tripo) through Mixamo rigging and Blender cleanup. Static on Cloudflare with self-hosted dependencies, a strict CSP, HSTS and no trackers.',
       tags: ['three.js', 'WebGL', 'Blender', 'Cloudflare'], live: '', code: '', image: '' },
     { title: 'ColorStack @ Montclair State', blurb: 'Chapter website and recognition proposal for a new ColorStack chapter, growing the pipeline of Black and Latinx students in computing on campus.',
       tags: ['Web', 'Leadership'], live: '', code: 'https://github.com/Neo-Land/colorstack-msu', image: '' },
@@ -210,7 +208,7 @@ skipEl.onclick = () => skipIntro();
 function skipIntro() {                     // straight to the loft (for visitors in a hurry)
   startEl.remove();
   if (!neo) { skipWanted = true; skipEl.textContent = 'Loading…'; return; }
-  if (state === 'opening' || state === 'white') return;
+  if (state === 'launch' || state === 'white') return;
   state = 'white'; drag = null;
   whiteEl.style.transition = 'opacity .5s'; whiteEl.style.opacity = 1;
   introEl.classList.add('gone'); skipEl.classList.add('hide'); navEl.classList.remove('hide');
@@ -259,13 +257,10 @@ const PLACES = [
 const PIN_HEIGHT = 0.07;                         // how far the pins poke out (fraction of the globe's radius)
 const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const roomEl = document.getElementById('room'), cardEl = document.getElementById('card');
-let globeLib, world;
-// globe.gl is ~1.8 MB: start fetching while the ticket waits on the seam, so the room is ready when the light fades
-const loadGlobe = () => globeLib ??= new Promise((ok, fail) => {
-  const sc = document.createElement('script');
-  sc.src = 'vendor/globe.gl.min.js'; sc.onload = ok; sc.onerror = fail;   // self-hosted, pinned 2.46.2
-  document.head.appendChild(sc);
-});
+// Earth textures for the globe (NASA Blue Marble + topology bump, WebP): fetched early, like the loft models
+let earthTex;
+const loadEarth = () => earthTex ??= Promise.all(['vendor/earth-blue-marble.webp', 'vendor/earth-topology.webp']
+  .map((u) => new THREE.TextureLoader().loadAsync(u)));
 // The loft (after the reference photo): exposed brick, dark glossy hardwood, tall steel windows on the right with
 // brick piers, black ceiling beams. Moody + warm: a low amber sun through the windows throws light streaks and grid
 // shadows; dim warm ambient; the globe's blue glow is the cool contrast.
@@ -481,13 +476,12 @@ const CAR_SCALE = 2.45;                                           // car.glb is 
 const MECH_AT = [-0.15, 0, 1.42];                                // at the front bumper, leaning into the open engine bay
 const mixers = [];                                                // the loft's extra animated characters
 function loadCarCorner(group) {
-  const loader = new GLTFLoader();
-  loader.load('car.glb', (g) => {
+  loadModel('car.glb').then((g) => {
     g.scene.scale.setScalar(CAR_SCALE);
     g.scene.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.material.envMap = loft.environment; o.material.envMapIntensity = 0.5; } });
     group.add(g.scene);
   });
-  loader.load('mechanic.glb', (g) => {
+  loadModel('mechanic.glb').then((g) => {
     const mech = g.scene;
     mech.position.set(...MECH_AT); mech.rotation.y = Math.PI;        // facing the car
     mech.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
@@ -523,15 +517,17 @@ function buildNook(group) {
   }
   const maskPeg = tips[3];                                                       // upper left peg, just behind the suit
   for (const a of [0.8, 1.9, 3.4, 5.2]) pegAt(peg - 0.26, a, 0.13);
-  const loader = new GLTFLoader(), dress = (o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; };
-  loader.load('suit.glb', (g) => {
+  const dress = (o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; };
+  loadModel('suit.glb').then((g) => {
     g.scene.traverse(dress);
-    const suit = g.scene.getObjectByName('suit'), hat = g.scene.getObjectByName('hat');
+    // wrap each piece: its own node transform holds the compression's dequantisation, so it must not be overwritten
+    const hold = (name) => { const h = new THREE.Group(); h.add(g.scene.getObjectByName(name)); return h; };
+    const suit = hold('suit'), hat = hold('hat');
     suit.scale.setScalar(1.08); suit.position.set(x, peg + 0.08, 0.14);              // collar hooked on the front peg
-    hat.scale.setScalar(1.08); hat.position.set(x, top - 0.03, 0); hat.rotation.set(-0.1, 0.3, 0.12);  // tipped on the finial
+    hat.scale.setScalar(1.08); hat.position.set(x, top - 0.03 - 0.12 * 1.08, 0);   /* the hat node sits 0.12 up inside suit.glb */ hat.rotation.set(-0.1, 0.3, 0.12);  // tipped on the finial
     group.add(suit, hat);
   });
-  loader.load('mask.glb', (g) => {                                               // hung by its strap, peeking out over the left shoulder
+  loadModel('mask.glb').then((g) => {                                               // hung by its strap, peeking out over the left shoulder
     g.scene.scale.setScalar(0.16); g.scene.position.set(maskPeg.x - 0.05, maskPeg.y - 0.09, -0.06);
     g.scene.rotation.set(0.06, -0.3, 0);                                         // face turned toward the room
     g.scene.traverse(dress); group.add(g.scene);
@@ -544,7 +540,7 @@ function buildNook(group) {
   const back = new THREE.Group(); back.position.set(0, 0.25, -0.125); back.rotation.x = -0.17; seat.add(back);
   for (const sx of [-1, 1]) add2(back, new THREE.BoxGeometry(0.03, 0.34, 0.03), wood, sx * 0.12, 0.17, 0);
   for (const y of [0.2, 0.3]) add2(back, new THREE.BoxGeometry(0.22, 0.05, 0.018), wood, 0, y, 0);
-  loader.load('swordsman.glb', (g) => {
+  loadModel('swordsman.glb').then((g) => {
     const man = g.scene;
     man.traverse((o) => {
       dress(o); if (!o.isMesh) return;
@@ -573,6 +569,9 @@ function layoutRoom() {
   // narrow screens: seated Neo + globe shift a little left, opening a gap so the hobby nook shows beside them
   GLOBE_AT.x = a < 1 ? -0.22 : 0;
   walls.globeHit.position.copy(GLOBE_AT); walls.glow.position.copy(GLOBE_AT);
+  // the globe turns its face to the "About me" camera (spin + tilt happen inside)
+  const [eye] = viewOf('globe');
+  globe.root.rotation.y = Math.atan2(eye.x - GLOBE_AT.x, eye.z - GLOBE_AT.z);
   if (neo.parent === loft) neo.position.x = GLOBE_AT.x;
   // hobby nook by the windows, turned most of the way toward the camera
   walls.nook.position.set(roomHalf - 0.75, 0, -1.8);
@@ -594,16 +593,8 @@ function layoutRoom() {
 }
 function setCam(pos, look) {
   loftCam.position.copy(pos); camLook.copy(look); loftCam.lookAt(look);
-  loftCam.updateMatrixWorld();                                          // project() below needs the new view
-  // globe overlay: centre on GLOBE_AT, sized to GLOBE_R as seen by this camera
-  const c = GLOBE_AT.clone().project(loftCam), up = GLOBE_AT.clone().add(new THREE.Vector3(0, GLOBE_R * globeK, 0)).project(loftCam);
-  const rFrac = (up.y - c.y);                                           // radius as a fraction of the half-height
-  document.getElementById('float').style.transform = `translate(${c.x * innerWidth / 2}px, ${-c.y * innerHeight / 2}px)`;
-  document.getElementById('float').style.setProperty('--gd', `${rFrac * innerHeight}px`);
-  homeAltitude = 1 / Math.sin(Math.atan(rFrac * Math.tan(25 * Math.PI / 180))) - 1;   // globe.gl: 50° fov, altitude in radii
+  loftCam.updateMatrixWorld();                                          // project() (signs) needs the new view
 }
-let homeAltitude = 2.6;
-const homeView = () => ({ lat: 25, lng: 10, altitude: homeAltitude });
 
 // Loft sections. The overview shows them all; picking one (its hanging sign, or clicking it in the room) flies the
 // camera in, and only then does that section respond (the globe only spins once you've zoomed to it).
@@ -629,8 +620,9 @@ let focus = null, fly = null, globeK = 1;
 const globeKFor = (id) => id === 'globe' || innerWidth >= innerHeight ? 1 : 0.55;
 const viewOf = (id) => {
   if (!id) return [overview.pos.clone(), overview.look.clone()];
-  const sec = SECTIONS.find((s) => s.id === id), look = sec.look();
-  return [sec.eye?.() ?? overview.pos.clone().lerp(look, ZOOM_IN), look];
+  const sec = SECTIONS.find((s) => s.id === id), look = sec.look(), eye = sec.eye?.() ?? overview.pos.clone().lerp(look, ZOOM_IN);
+  if (id === 'globe' && !cardEl.hidden) return [eye.sub(GLOBE_AT).setLength(GLOBE_R * 3.4).add(GLOBE_AT), GLOBE_AT.clone()];   // close on a pin
+  return [eye, look];
 };
 const tipEl = roomEl.querySelector('.tip'), backEl = document.getElementById('back');
 function goTo(id) {
@@ -639,7 +631,6 @@ function goTo(id) {
   fly = { t: 0, from: [loftCam.position.clone(), camLook.clone()], to: viewOf(id), k: [globeK, globeKFor(id)] };
   roomEl.dataset.focus = id || '';
   roomEl.classList.remove('picked');
-  roomEl.classList.toggle('away', !!id && id !== 'globe');                // globe overlay fades while another section is in view
   tipEl.textContent = id ? SECTIONS.find((s) => s.id === id).tip : OVERVIEW_TIP;
   backEl.hidden = !id;
   if (id) backEl.focus();
@@ -648,11 +639,13 @@ backEl.onclick = () => goTo(null);
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && focus && !folio.open) goTo(null); });
 const flyPos = new THREE.Vector3(), flyLook = new THREE.Vector3();
 // While a section is open, the other sections' 3D props fade out so nothing peeks into its view
-const PROPS = { globe: () => [neo], car: () => [walls.car], hobbies: () => [walls.nook] };
+const PROPS = { globe: () => [neo, coin, globe.root], car: () => [walls.car], hobbies: () => [walls.nook] };
 function fadeSections(dt) {
+  let busy = false;
   for (const s of SECTIONS) for (const o of PROPS[s.id]()) {
     const want = focus && focus !== s.id ? 0 : 1, op = o.userData.op ?? 1;
     if (op === want) continue;
+    busy = true;
     const next = o.userData.op = calm ? want : THREE.MathUtils.clamp(op + Math.sign(want - op) * dt / 0.5, 0, 1);
     o.visible = next > 0;
     o.traverse((m) => { for (const mat of m.material ? [].concat(m.material) : []) {
@@ -662,6 +655,7 @@ function fadeSections(dt) {
       mat.opacity = mat.userData.op0 * next;
     } });
   }
+  return busy;
 }
 function updateLoftView(dt) {
   if (fly) {
@@ -669,17 +663,20 @@ function updateLoftView(dt) {
     const e = ease(fly.t);
     globeK = THREE.MathUtils.lerp(fly.k[0], fly.k[1], e);
     setCam(flyPos.lerpVectors(fly.from[0], fly.to[0], e), flyLook.lerpVectors(fly.from[1], fly.to[1], e));
-    world?.pointOfView({ altitude: homeAltitude });                     // keep the globe's size matched to the camera
     if (fly.t === 1) fly = null;
   }
-  fadeSections(dt);
-  for (const s of [...SECTIONS, ...DECOR]) {                            // signs follow their spot on screen
-    if (!s.el) continue;
+  const fading = fadeSections(dt);
+  // signs follow their spot on screen; read every height first, then write, so the browser lays out once per frame
+  const signs = [...SECTIONS, ...DECOR].filter((s) => s.el), hs = signs.map((s) => s.el.offsetHeight);
+  signs.forEach((s, i) => {
     const v = s.signAt().project(loftCam);
-    const y = Math.max((1 - v.y) / 2 * innerHeight, s.el.offsetHeight + 64);      // never above the top menu
-    s.el.style.transform = `translate(${(v.x + 1) / 2 * innerWidth}px, ${y}px) translate(-50%, -100%)`;
-    s.el.hidden = v.z > 1 || (s.section ? focus !== s.section : focus && focus !== s.id);
-  }
+    const y = Math.max((1 - v.y) / 2 * innerHeight, hs[i] + 64);                  // never above the top menu
+    const tf = `translate(${(v.x + 1) / 2 * innerWidth}px, ${y}px) translate(-50%, -100%)`;
+    if (s.el.style.transform !== tf) s.el.style.transform = tf;                  // untouched while the camera is still
+    const hide = !!(v.z > 1 || (s.section ? focus !== s.section : focus && focus !== s.id));
+    if (s.el.hidden !== hide) s.el.hidden = hide;
+  });
+  return !!fly || fading;                                               // still moving: render at full rate
 }
 // Comic burst: a jagged star outline, halftone dots fading across it, chunky outlined letters, all through a grain
 // filter so it reads like cheap newsprint. Shape jitter is seeded per sign so each one is a little different.
@@ -726,7 +723,21 @@ function sectionAt(e) {
   return SECTIONS.find((s) => ray.intersectObjects(s.hits()).length);
 }
 
-async function enterRoom() {
+const LAND_DELAY = 0.45, LAND_T = 0.8;                            // s after the light starts fading / to fall
+function landCoin(dt) {
+  landT += dt;
+  const u = Math.min(Math.max((landT - LAND_DELAY) / LAND_T, 0), 1), e = u * u;    // accelerates as it falls
+  coin.visible = trail.visible = landT >= LAND_DELAY;
+  coin.position.lerpVectors(landFrom, landAt, e);
+  coinSpin.rotation.x = -Math.PI / 2 - (1 - e) * Math.PI * 6;                     // flipping, settles face up
+  const b = Math.min(Math.max((landT - LAND_DELAY - LAND_T) / 0.4, 0), 1);        // one small bounce
+  coin.position.y += Math.sin(b * Math.PI) * 0.035 * (1 - b);
+  updateTrail(landFrom, loftCam);
+  const fade = Math.min(Math.max((landT - LAND_DELAY - LAND_T) / 0.6, 0), 1);
+  trail.material.opacity = 1 - fade; coinGlow.material.opacity = 1 - fade; coinGlow.scale.setScalar(COIN_D * 2.6);
+  if (fade === 1) { trail.visible = false; landT = -1; }
+}
+function enterRoom() {
   if (walls) return;                              // already in the loft
   hintEl.remove();
   navEl.classList.remove('hide'); skipEl.classList.add('hide');
@@ -736,14 +747,32 @@ async function enterRoom() {
   loft.add(neo);
   neo.position.set(GLOBE_AT.x, 0, 0.15); neo.rotation.set(0, 0, 0);
   neo.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-  ticket.visible = slit.visible = false;
   mixer.stopAllAction();
   mixer.clipAction(neoClips.find((c) => c.name === 'neo_sit')).play();
+  // the coin falls into the loft as a shooting star and lands on the floor in front of him
+  loft.add(coin, trail); stars.visible = false;
+  // shade it like the rest of the loft: reflect the room's own environment, catch the sun's shadows, cast its own
+  coinSpin.traverse((o) => { if (o.isMesh) { o.material.envMap = loft.environment; o.material.envMapIntensity = 0.6; o.castShadow = o.receiveShadow = true; } });
+  coin.visible = trail.visible = true; coin.quaternion.identity(); coinSpin.rotation.set(0, 0, 0); coin.scale.setScalar(1);
+  landAt.set(GLOBE_AT.x + 0.42, COIN_D * 0.12, 0.72); landFrom.copy(landAt).add(tmp.set(-0.8, 3, -0.5));
+  coin.position.copy(landFrom); landT = 0;
+  buildGlobe();
+  freeIntro();
+  // Render on demand: full rate while something moves (camera flight, fades, the coin landing, globe drag/turn);
+  // otherwise only the idle loops (breathing, wrench, slow spin) are left, and 30 fps is plenty for those. Nothing
+  // at all is drawn while the portfolio panel covers the room (and browsers already pause hidden tabs).
   const clock2 = new THREE.Clock();
+  let acc = 0, busy = true;
   renderer.setAnimationLoop(() => {
-    const dt = Math.min(clock2.getDelta(), 0.05);
+    const raw = clock2.getDelta();
+    if (folio.open) return;
+    acc += raw;
+    if (!busy && acc < 1 / 30) return;
+    const dt = Math.min(acc, 0.05); acc = 0;
     mixer.update(dt); for (const m of mixers) m.update(dt);
-    updateLoftView(dt);
+    busy = updateLoftView(dt);
+    busy = updateGlobe(dt, clock2.elapsedTime) || busy;
+    if (landT >= 0) { landCoin(dt); busy = true; }
     renderer.render(loft, loftCam);
   });
   roomEl.hidden = false;
@@ -758,55 +787,137 @@ async function enterRoom() {
     d.className = 'sign decor'; d.hidden = true; d.append(comicBurst(s, SECTIONS.length + i));
     return (s.el = d);
   }));
-  await loadGlobe();
-  world = Globe()(document.getElementById('globe'))
-    .width(innerWidth).height(innerHeight)
-    .backgroundColor('rgba(0,0,0,0)')
-    .globeImageUrl('vendor/earth-blue-marble.jpg')
-    .bumpImageUrl('vendor/earth-topology.png')
-    .atmosphereColor('#4d8dff').atmosphereAltitude(0.28)
-    // pins: a steel needle poking out of the surface (3D) ...
-    .pointsData(PLACES).pointAltitude(PIN_HEIGHT).pointRadius(0.12).pointResolution(8).pointColor(() => '#c4c8d0')
-    // ... with a tappable head on the tip
-    .htmlElementsData(PLACES).htmlAltitude(PIN_HEIGHT)
-    .htmlElement((d) => {
-      const el = document.createElement('button');
-      el.className = 'pin'; el.title = el.ariaLabel = `${d.name}, ${d.country}`;
-      el.onclick = () => pickPlace(d, el);
-      return el;
-    })
-    .pointOfView(homeView());
-  world.htmlElementVisibilityModifier?.((el, visible) => { el.style.opacity = visible ? 1 : 0; el.style.pointerEvents = visible ? 'auto' : 'none'; });
-  world.controls().enableZoom = false;
-  world.controls().autoRotate = !calm;
-  world.controls().autoRotateSpeed = 0.5;
   requestAnimationFrame(() => roomEl.classList.add('in'));
   whiteEl.style.transition = 'opacity 1.6s';                           // the light fades to reveal the loft
   whiteEl.style.opacity = 0;
 }
-function pickPlace(d, el) {
-  world.controls().autoRotate = false;
-  world.pointOfView({ lat: d.lat, lng: d.lng, altitude: 0.55 }, calm ? 0 : 1600);   // zoom right in on the pin
-  document.querySelectorAll('.pin.on').forEach((x) => x.classList.remove('on'));
-  el.classList.add('on');
+function pickPlace(d) {
+  if (focus !== 'globe') goTo('globe');
+  const dir = latLng(d.lat, d.lng);                                    // turn the pin to face you, then fly in close
+  globe.turn = { tilt: Math.asin(dir.y), spin: nearAngle(globe.spin.rotation.y, -Math.atan2(dir.x, dir.z)) };
+  globe.hold = true;
+  for (const p of globe.pins) p.head.scale.setScalar(p.d === d ? 1.4 : 1);
   document.getElementById('c-name').textContent = d.name;
   document.getElementById('c-country').textContent = d.country;
   document.getElementById('c-note').textContent = d.note;
   cardEl.hidden = false;
   roomEl.classList.add('picked');
+  fly = { t: 0, from: [loftCam.position.clone(), camLook.clone()], to: viewOf('globe'), k: [globeK, 1] };   // in close (card is open)
 }
 cardEl.querySelector('.x').onclick = () => {
   cardEl.hidden = true;
-  document.querySelector('.pin.on')?.classList.remove('on');
-  world.pointOfView(homeView(), calm ? 0 : 1400);
-  world.controls().autoRotate = !calm;
+  roomEl.classList.remove('picked');
+  for (const p of globe.pins) p.head.scale.setScalar(1);
+  globe.hold = false;
+  globe.turn = { tilt: HOME_TILT, spin: globe.spin.rotation.y };      // level back out, then carry on spinning
+  if (focus === 'globe') fly = { t: 0, from: [loftCam.position.clone(), camLook.clone()], to: viewOf('globe'), k: [globeK, 1] };
 };
+
+// ── The globe: a textured Earth floating above Neo, part of the loft scene (same renderer, same lights) ──
+// root (position, size, faces the About-me camera) > tilt (x: latitude toward you) > spin (y: longitude) > earth + pins
+const globe = { root: new THREE.Group(), tilt: new THREE.Group(), spin: new THREE.Group(), pins: [], earth: null, aura: null,
+  drag: null, turn: null, hold: false };
+globe.root.add(globe.tilt); globe.tilt.add(globe.spin);
+const HOME_TILT = 25 * Math.PI / 180, SPIN_SPEED = Math.PI * 2 / 120;   // northern hemisphere toward you; a turn every 2 min
+const D2R = Math.PI / 180;
+// unit vector for a lat/lng on three's SphereGeometry with an equirectangular map (lng 0 at +x, east toward -z)
+const latLng = (lat, lng) => new THREE.Vector3(Math.cos(lat * D2R) * Math.cos(lng * D2R), Math.sin(lat * D2R), -Math.cos(lat * D2R) * Math.sin(lng * D2R));
+const nearAngle = (from, to) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));      // shortest way round
+function buildGlobe() {
+  const R = GLOBE_R;
+  globe.earth = new THREE.Mesh(new THREE.SphereGeometry(R, 64, 48),
+    new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, emissive: 0xffffff, emissiveIntensity: 0.35 }));   // self-lit a little: it glows
+  globe.earth.castShadow = true;
+  loadEarth().then(([map, bump]) => {
+    map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    Object.assign(globe.earth.material, { map, emissiveMap: map, bumpMap: bump, bumpScale: 1.5 });
+    globe.earth.material.needsUpdate = true;
+  });
+  // blue aura behind it (was a CSS gradient): additive sprite, hidden where the Earth is in front of it
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d'), grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  for (const [o, col] of [[0.38, 'rgba(120,180,255,.75)'], [0.55, 'rgba(60,130,255,.38)'], [0.75, 'rgba(40,100,255,.12)'], [1, 'rgba(40,100,255,0)']]) grad.addColorStop(o, col);
+  g.fillStyle = grad; g.fillRect(0, 0, 256, 256);
+  globe.aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  globe.aura.scale.setScalar(R * 2 * 2.3);
+  globe.root.add(globe.aura);
+  globe.spin.add(globe.earth);
+  // pins: a steel needle out of the surface with an orange head (plus a bigger invisible tap target)
+  const steel = new THREE.MeshStandardMaterial({ color: 0xc4c8d0, metalness: 0.8, roughness: 0.3 });
+  const orange = new THREE.MeshStandardMaterial({ color: 0xff6a3d, roughness: 0.4, emissive: 0xff6a3d, emissiveIntensity: 0.3 });
+  const h = R * PIN_HEIGHT * 1.6, up = new THREE.Vector3(0, 1, 0);
+  for (const d of PLACES) {
+    const dir = latLng(d.lat, d.lng), pin = new THREE.Group();
+    pin.position.copy(dir).multiplyScalar(R); pin.quaternion.setFromUnitVectors(up, dir);
+    const needle = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.007, R * 0.007, h, 8), steel); needle.position.y = h / 2;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(R * 0.035, 16, 12), orange); head.position.y = h;
+    const hit = new THREE.Mesh(new THREE.SphereGeometry(R * 0.1, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); hit.position.y = h;
+    pin.add(needle, head, hit); globe.spin.add(pin);
+    globe.pins.push({ d, head, hit });
+  }
+  globe.tilt.rotation.x = HOME_TILT;
+  globe.spin.rotation.y = -Math.atan2(latLng(25, 10).x, latLng(25, 10).z);   // start on Europe/Africa, like before
+  loft.add(globe.root);
+  // keyboard / screen-reader access to the pins (visually hidden until focused)
+  document.getElementById('places').replaceChildren(...PLACES.map((d) => {
+    const b = document.createElement('button');
+    b.className = 'place'; b.textContent = `${d.name}, ${d.country}`; b.onclick = () => pickPlace(d);
+    return b;
+  }));
+}
+function updateGlobe(dt, t) {
+  globe.root.position.copy(GLOBE_AT).setY(GLOBE_AT.y + (calm ? 0 : Math.sin(t * Math.PI / 3) * 0.02));   // slow bob
+  globe.root.scale.setScalar(globeK);
+  globe.aura.scale.setScalar(GLOBE_R * 2 * 2.3 * (calm ? 1 : 1 + 0.035 * (1 - Math.cos(t * Math.PI / 2))));   // pulse
+  if (globe.turn) {
+    const k = 1 - Math.exp(-dt * 5);
+    globe.tilt.rotation.x += (globe.turn.tilt - globe.tilt.rotation.x) * k;
+    globe.spin.rotation.y += (globe.turn.spin - globe.spin.rotation.y) * k;
+    if (Math.abs(globe.turn.tilt - globe.tilt.rotation.x) + Math.abs(globe.turn.spin - globe.spin.rotation.y) < 1e-3) globe.turn = null;
+  } else if (!globe.drag && !globe.hold && !calm) globe.spin.rotation.y += SPIN_SPEED * dt;
+  return !!(globe.turn || globe.drag);
+}
+// drag to spin (once "About me" is open); a tap that doesn't move picks the pin under it
+const globeRay = (e) => { ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ptr, loftCam); return ray; };
+function pinAt(e) {
+  const hits = globeRay(e).intersectObjects([globe.earth, ...globe.pins.map((p) => p.hit)]);
+  return hits[0] && globe.pins.find((p) => p.hit === hits[0].object)?.d;   // the Earth in front blocks pins round the back
+}
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (!walls || focus !== 'globe' || !globeRay(e).intersectObject(walls.globeHit).length) return;
+  globe.drag = { x: e.clientX, y: e.clientY, moved: 0 }; globe.turn = null;
+  try { renderer.domElement.setPointerCapture(e.pointerId); } catch {}
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  const g = globe.drag; if (!g) return;
+  const dx = e.clientX - g.x, dy = e.clientY - g.y; g.x = e.clientX; g.y = e.clientY; g.moved += Math.abs(dx) + Math.abs(dy);
+  const k = 3 / Math.min(innerWidth, innerHeight);                                       // a full-screen drag ≈ half a turn
+  globe.spin.rotation.y += dx * k;
+  globe.tilt.rotation.x = THREE.MathUtils.clamp(globe.tilt.rotation.x + dy * k, -1.2, 1.2);
+});
+const endGlobeDrag = (e) => {
+  const g = globe.drag; if (!g) return;
+  globe.drag = null;
+  const d = g.moved < 6 && pinAt(e);
+  if (d) pickPlace(d);
+};
+renderer.domElement.addEventListener('pointerup', endGlobeDrag);
+renderer.domElement.addEventListener('pointercancel', () => { globe.drag = null; });
+// once in the loft, the intro's void (ripple floor, stars, lights, the coin's studio reflections) is never seen again
+function freeIntro() {
+  scene.traverse((o) => {
+    o.geometry?.dispose();
+    for (const m of [].concat(o.material ?? [])) { for (const v of Object.values(m)) if (v?.isTexture) v.dispose(); m.dispose(); }
+  });
+  coinEnv?.dispose();
+  scene.clear();
+}
 const feet = {};
 let walkPrev = 0;
 let state = 'walking', angle = 0, turnFrom = 0, turnTo = 0, turnT = 0, zoomS = 0;
 const camFrom = new THREE.Vector3(), lookFrom = new THREE.Vector3();
 
-new GLTFLoader().load('neo.glb', (gltf) => {
+gltfLoader().load('neo.glb', (gltf) => {
   neo = gltf.scene;
   scene.add(neo);
   neo.traverse((o) => {
@@ -815,29 +926,17 @@ new GLTFLoader().load('neo.glb', (gltf) => {
     if (foot) feet[foot[1]] = o;
   });
 
-  // The ticket follows real points on the deformed mesh (pocket, top/bottom of the seam), so it lines up in any pose
-  skinned = neo.getObjectByProperty('isSkinnedMesh', true);
-  const pos = skinned.geometry.attributes.position, p = new THREE.Vector3();
-  const nearest = (a) => {
-    const target = new THREE.Vector3(...a); let best = 0, bd = Infinity;
-    for (let i = 0; i < pos.count; i++) {
-      const d = p.fromBufferAttribute(pos, i).applyMatrix4(skinned.bindMatrix).distanceToSquared(target);
-      if (d < bd) { bd = d; best = i; }
-    }
-    return best;
-  };
-  spots = { pocket: nearest(POCKET), top: nearest(FLY_TOP), bot: nearest(FLY_BOT) };
-  ticket = makeTicket();
-  ticket.traverse((o) => { o.renderOrder = 2; });
-  scene.add(ticket);
-  slit = makeSlit();
-  scene.add(slit);
+  hand = neo.getObjectByName('mixamorigRightHand'); finger = neo.getObjectByName('mixamorigRightHandIndex1');
 
   mixer = new THREE.AnimationMixer(neo);
   neoClips = gltf.animations;
   const clip = (n) => gltf.animations.find((a) => a.name === n);
   walk = mixer.clipAction(clip('neo_slow_walk'));
   idle = mixer.clipAction(clip('neo_idle'));
+  gltfLoader().load('lift.glb', (g) => {                       // bends down, picks the coin up, holds it out
+    lift = mixer.clipAction(THREE.AnimationUtils.subclip(g.animations[0], 'neo_lift', 0, LIFT_HOLD * 30, 30));
+    lift.setLoop(THREE.LoopOnce); lift.clampWhenFinished = true;
+  });
   walk.play();
 
   // Invisible, generous tap target (easier on phones than hitting the mesh)
@@ -848,15 +947,13 @@ new GLTFLoader().load('neo.glb', (gltf) => {
   else setTimeout(() => state === 'walking' && startEl.classList.add('on'), 1800);
 });
 
-// Tap / click on Neo → stop, face camera, idle
+// Tap / click on Neo → stop, face camera, pick up the coin
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
 function pick(e) {
   ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ptr, camera);
   return hit && ray.intersectObject(hit).length > 0;
 }
-const TEAR_COMMIT = 0.6;                       // let go past this and it finishes on its own
-const dragLen = () => 0.45 * Math.min(innerWidth, innerHeight);
 renderer.domElement.addEventListener('click', (e) => {
   if (!walls || focus) return;
   const s = sectionAt(e);
@@ -864,35 +961,48 @@ renderer.domElement.addEventListener('click', (e) => {
 });
 renderer.domElement.addEventListener('pointerdown', (e) => {
   if (state === 'walking' && pick(e)) tapNeo();
-  else if (state === 'ready') {                // drag in any direction to tear + reveal
-    drag = { x: e.clientX, y: e.clientY, from: tear };
+  else if (state === 'ready') {                // flick the coin up; it launches when you let go
+    drag = { y: e.clientY };                   // flick up: the coin starts turning with your finger
     try { renderer.domElement.setPointerCapture(e.pointerId); } catch {} // keep the drag even if the finger leaves the canvas
-    state = 'tearing';
   }
 });
 function endDrag() {
   if (!drag) return;
-  drag = null;
-  state = tear >= TEAR_COMMIT ? 'opening' : 'ready';
+  drag = null;                                 // end of the flick: it flies up and away
+  state = 'launch'; launchT = 0;
+  launchDir.setFromMatrixColumn(camera.matrixWorld, 0).multiplyScalar(0.5).add(tmp.set(0, 1, 0)).normalize();   // up and to the right on screen
+  hintEl.classList.remove('on');
+  trail.visible = stars.visible = true;
 }
 renderer.domElement.addEventListener('pointerup', endDrag);
 renderer.domElement.addEventListener('pointercancel', endDrag);
 function tapNeo() {
   startEl.remove();
-  state = 'turning';
+  for (const m of LOFT_MODELS) loadModel(m);   // start downloading the loft while he picks up the coin
+  loadEarth();
   introEl.classList.add('gone');
   navEl.classList.add('hide'); skipEl.classList.add('hide');
-  idle.reset().play();
-  walk.crossFadeTo(idle, 0.6, false);
+  // he'll end up facing the camera with the coin just in front of his right foot: walk there first
+  faceYaw = Math.atan2(camera.position.x - coin.position.x, camera.position.z - coin.position.z);
+  const f = new THREE.Vector3(Math.sin(faceYaw), 0, Math.cos(faceYaw)), r = new THREE.Vector3(f.z, 0, -f.x);
+  standAt.copy(coin.position).addScaledVector(r, COIN_FLOOR[0]).addScaledVector(f, -COIN_FLOOR[1]).setY(0);
+  state = 'approach'; walk.timeScale = APPROACH_SPEED;
+}
+function pickUp() {                            // face the camera and bend down for it
+  state = 'turning'; walk.timeScale = 1;
+  liftUsed = !!lift;
+  const next = liftUsed ? lift : idle;         // (idle if the clip hasn't arrived yet: the coin just jumps to his hand)
+  next.reset().play();
+  walk.crossFadeTo(next, 0.5, false);
   turnFrom = neo.rotation.y;
-  const yaw = Math.atan2(camera.position.x - neo.position.x, camera.position.z - neo.position.z);
-  turnTo = turnFrom + Math.atan2(Math.sin(yaw - turnFrom), Math.cos(yaw - turnFrom)); // shortest way round
+  turnTo = turnFrom + Math.atan2(Math.sin(faceYaw - turnFrom), Math.cos(faceYaw - turnFrom)); // shortest way round
   turnT = 0;
+  qFlat.copy(coin.quaternion);
 }
 renderer.domElement.addEventListener('pointermove', (e) => {
-  if (drag) tear = Math.min(Math.max(drag.from + Math.hypot(e.clientX - drag.x, e.clientY - drag.y) / dragLen(), 0), 1);
-  if (e.pointerType === 'mouse') renderer.domElement.style.cursor = walls ? (!focus && sectionAt(e) ? 'pointer' : '') :
-    state === 'walking' && pick(e) ? 'pointer' : state === 'ready' ? 'grab' : state === 'tearing' ? 'grabbing' : '';
+  if (drag) { coinSpin.rotation.x += (drag.y - e.clientY) * 0.03; drag.y = e.clientY; }   // the coin turns with your flick
+  if (e.pointerType === 'mouse') renderer.domElement.style.cursor = walls ? (!focus && sectionAt(e) ? 'pointer' : focus === 'globe' ? (globe.drag ? 'grabbing' : pinAt(e) ? 'pointer' : globeRay(e).intersectObject(walls.globeHit).length ? 'grab' : '') : '') :
+    state === 'walking' && pick(e) ? 'pointer' : state === 'ready' ? (drag ? 'grabbing' : 'grab') : '';
 });
 
 function resize() {
@@ -908,7 +1018,7 @@ function resize() {
 }
 addEventListener('resize', () => {
   resize();
-  if (walls) { layoutRoom(); world?.width(innerWidth).height(innerHeight); }
+  if (walls) layoutRoom();
 });
 resize();
 
@@ -916,60 +1026,21 @@ const clock = new THREE.Clock();
 const tmp = new THREE.Vector3();
 const ease = (t) => t * t * (3 - 2 * t);
 
-// Ticket poses, recomputed every frame from the posed mesh
-const pose = () => ({ p: new THREE.Vector3(), q: new THREE.Quaternion() });
-const P = { pocket: pose(), out: pose(), zip: pose() };
-const qPocket = new THREE.Quaternion().setFromEuler(new THREE.Euler(POCKET_TILT, 0, Math.PI / 2)); // stub end up, top tilted forward
-const fwd = new THREE.Vector3(), top = new THREE.Vector3(), bot = new THREE.Vector3(), basis = new THREE.Matrix4();
+// Where the camera aims (near the held coin) and where the coin sits in his fingers, recomputed every frame
+const P = { show: { p: new THREE.Vector3(), q: new THREE.Quaternion() } };
+const fwd = new THREE.Vector3(), handAt = new THREE.Vector3(), palmAt = new THREE.Vector3(), qFlat = new THREE.Quaternion(), qHeld = new THREE.Quaternion();
 function updateSpots() {
   neo.updateMatrixWorld(true);
-  const at = (i, v) => skinned.getVertexPosition(i, v).applyMatrix4(skinned.matrixWorld);
   fwd.set(Math.sin(neo.rotation.y), 0, Math.cos(neo.rotation.y));
-  // start buried in the leg behind the pocket; 'out' is the arc's high point above the pocket
-  at(spots.pocket, P.out.p);
-  P.pocket.p.copy(P.out.p).add(tmp.set(0, -0.05, 0)).addScaledVector(fwd, -0.03);
-  P.out.p.add(tmp.set(0, 0.09, 0)).addScaledVector(fwd, 0.07);
-  P.pocket.q.copy(neo.quaternion).multiply(qPocket);
-  // Perforation (local Y) follows the seam as seen from the front; ticket faces straight out of his front
-  at(spots.top, top); at(spots.bot, bot);
-  const up = top.clone().sub(bot); up.addScaledVector(fwd, -up.dot(fwd)).normalize();
-  const side = up.clone().cross(fwd).normalize();
-  P.zip.q.setFromRotationMatrix(basis.makeBasis(side, up, fwd));
-  P.zip.p.copy(top).add(bot).multiplyScalar(0.5);
-  P.zip.p.addScaledVector(fwd, Math.max(top.dot(fwd), bot.dot(fwd)) - P.zip.p.dot(fwd) + FLY_GAP); // clear of the belt
+  P.show.q.copy(neo.quaternion);                                           // face out of his front, toward the camera
+  hand.getWorldPosition(handAt); finger.getWorldPosition(tmp);
+  palmAt.lerpVectors(handAt, tmp, 0.7); palmAt.y += COIN_D * 0.65;        // floating just above his upturned palm (clears it even mid-spin)
+  handAt.lerp(tmp, 1.6);                                                   // just past the knuckles, between his fingers
+  qHeld.copy(neo.quaternion);                                              // floating above the palm, facing the camera
+  P.show.p.copy(neo.position).setY(CHEST_Y).lerp(palmAt, 0.5);
 }
-function placeTicket(a, b, f) {
-  ticket.position.lerpVectors(a.p, b.p, f);
-  ticket.quaternion.slerpQuaternions(a.q, b.q, f);
-}
-// One continuous move: curve from inside the pocket, up over the arc point, down onto the seam
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-function pullTicket(u) {
-  const k = easeInOut(u), a = (1 - k) ** 2, b = 2 * (1 - k) * k, c = k * k;     // quadratic Bezier weights
-  ticket.position.set(0, 0, 0).addScaledVector(P.pocket.p, a).addScaledVector(P.out.p, b).addScaledVector(P.zip.p, c);
-  // keep it upright while it clears the pocket, then turn to face out as it travels
-  ticket.quaternion.slerpQuaternions(P.pocket.q, P.zip.q, easeInOut(Math.min(Math.max((u - 0.25) / 0.75, 0), 1)));
-}
-// Tear from the top down: both halves hinge at the bottom of the perforation, opening a V
-function tearTicket(p, o) {
-  const h = TICKET_H / 2;
-  const hinge = (m, a, dx, dy) => {
-    m.rotation.z = a;
-    m.position.set(-h * Math.sin(a) + dx, -h + h * Math.cos(a) + dy, 0);
-  };
-  hinge(ticket.userData.stub, -p * 0.5 - o * 1.4, o * 0.12, -o * 0.16);
-  hinge(ticket.userData.main, p * 0.18 + o * 0.9, -o * 0.1, -o * 0.14);
-  ticket.userData.stub.position.z = p * 0.004;                   // stub lifts toward you so the halves never z-fight
-}
-// Reveal: white lens from the top of the seam down; widens with the tear, then blooms to fill the screen
-function placeSlit(p, o) {
-  const flyLen = top.clone().sub(bot).addScaledVector(fwd, -top.clone().sub(bot).dot(fwd)).length();
-  slit.visible = p > 0.001;
-  slit.quaternion.copy(P.zip.q);
-  slit.position.copy(top).addScaledVector(fwd, P.zip.p.dot(fwd) - FLY_GAP * 0.5 - top.dot(fwd));
-  slit.position.addScaledVector(tmp.set(0, 1, 0).applyQuaternion(P.zip.q), o * o * 0.3); // bloom grows upward too
-  slit.scale.set(0.004 + p * 0.016 + o ** 3 * 3, Math.max(p * flyLen, 0.001) + o * o * 1.2, 1);
-}
+const launchFrom = new THREE.Vector3(), launchDir = new THREE.Vector3(), landFrom = new THREE.Vector3(), landAt = new THREE.Vector3();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
   floorMat.uniforms.uTime.value = t;
@@ -985,12 +1056,18 @@ renderer.setAnimationLoop(() => {
       turnT = Math.min(turnT + dt / 0.9, 1);
       neo.rotation.y = turnFrom + (turnTo - turnFrom) * ease(turnT);
       if (turnT === 1) { state = 'zooming'; zoomS = 0; camFrom.copy(camera.position); lookFrom.copy(lookAt); }
+    } else if (state === 'approach') {          // straight to the coin, turning toward it as he goes
+      tmp.subVectors(standAt, neo.position).setY(0);
+      const d = tmp.length(), h = Math.atan2(tmp.x, tmp.z);
+      neo.rotation.y += Math.atan2(Math.sin(h - neo.rotation.y), Math.cos(h - neo.rotation.y)) * (1 - Math.exp(-dt * 6));
+      neo.position.addScaledVector(tmp.normalize(), Math.min(d, WALK_SPEED * APPROACH_SPEED * dt));
+      if (d < 0.01) pickUp();
     }
     mixer.update(dt);
 
     // One ripple per footstep: fire when the walk clip's time passes a foot plant (handles the loop wrap)
     const wt = walk.time;
-    if (state === 'walking') for (const { t: pt, side } of FOOT_PLANTS) {
+    if (state === 'walking' || state === 'approach') for (const { t: pt, side } of FOOT_PLANTS) {
       if (walkPrev <= wt ? pt > walkPrev && pt <= wt : pt > walkPrev || pt <= wt) {
         feet[side].getWorldPosition(tmp);
         addRipple(tmp.x, tmp.z, t);
@@ -998,36 +1075,60 @@ renderer.setAnimationLoop(() => {
     }
     walkPrev = wt;
     updateSpots();
-    ticket.visible = state === 'zooming' ? zoomS > 1.2 : state !== 'walking' && state !== 'turning'; // hidden in the pocket until needed
-    if (state === 'walking' || state === 'turning') placeTicket(P.pocket, P.pocket, 0);
-    else {
-      // Close-up on the seam: ticket fills ~60% of the screen width
-      const halfW = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect;
-      const camTo = P.zip.p.clone().addScaledVector(fwd, TICKET_W / 0.6 / 2 / halfW);
+    if (state === 'turning' || state === 'zooming') {
+      // on the floor until his hand gets there, then in his fingers, turning from flat to face the camera
+      const lt = liftUsed ? lift.time : LIFT_HOLD;
+      if (lt >= LIFT_GRAB) {                       // gripped between his fingers, then lying on the palm as it turns up
+        const w = ease(Math.min(Math.max((lt - PALM_TURN[0]) / (PALM_TURN[1] - PALM_TURN[0]), 0), 1));
+        coin.position.lerpVectors(handAt, palmAt, w);
+        const k = easeInOut(Math.min((lt - LIFT_GRAB) / (PALM_TURN[1] - LIFT_GRAB), 1));
+        coin.quaternion.slerpQuaternions(qFlat, qHeld, k);                 // flat → facing the camera
+        coin.scale.setScalar(COIN_SMALL + (1 - COIN_SMALL) * k);           // and growing to full size
+      }
+    }
+    if (state !== 'walking' && state !== 'approach' && state !== 'turning') {
+      // Close-up on the held coin (a little wider than before), Neo behind it
+      const half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.min(camera.aspect, 1);
+      const camTo = P.show.p.clone().addScaledVector(fwd, CLOSE_W / 2 / half);
       if (state === 'zooming') {
         zoomS += dt;
         const k = ease(Math.min(zoomS / 3.2, 1));                // slow camera push-in
         camera.position.lerpVectors(camFrom, camTo, k);
-        lookAt.lerpVectors(lookFrom, P.zip.p, k);
-        pullTicket(Math.min(Math.max((zoomS - 1.2) / 2.6, 0), 1)); // 1.2 s → 3.8 s: out of the pocket onto the seam
-        if (zoomS >= 3.8) { state = 'ready'; loadGlobe().catch(() => {}); } // waiting for the tear; prefetch the globe
-      } else {
-        if (state === 'ready') tear += (0 - tear) * (1 - Math.exp(-dt * 8));   // let go early → springs back
-        if (state === 'opening') {
-          tear = Math.min(tear + dt * 3, 1);
-          opening = Math.min(opening + dt / 1.8, 1);
-          if (opening === 1) { state = 'white'; enterRoom(); } // → beat 7, the white room
+        lookAt.lerpVectors(lookFrom, P.show.p, k);
+        if (k === 1 && (!liftUsed || !lift.isRunning())) state = 'ready';
+      } else if (state === 'ready') {
+        coin.position.copy(palmAt).add(tmp.set(0, Math.sin(t * 2.2) * 0.008, 0));   // hovering, bobbing gently
+        coin.quaternion.copy(qHeld);
+        coinSpin.rotation.y = Math.sin(t * 1.3) * 0.12;                // a slight wobble so the gold catches the light
+        camera.position.copy(camTo); lookAt.copy(P.show.p);
+        launchFrom.copy(coin.position);
+        hintEl.classList.toggle('on', !drag);
+      } else if (state === 'launch') {
+        // up and to the right, flipping end over end, straight off the top of the screen; the streak it leaves then
+        // splits open into white along its whole length, slicing the screen in half
+        launchT = Math.min(launchT + dt, LAUNCH_T);
+        const u = launchT;
+        coin.position.copy(launchFrom).addScaledVector(launchDir, 3.2 * u ** 1.5);
+        coinSpin.rotation.x += dt * 30;
+        updateTrail(launchFrom, camera);
+        coinGlow.material.opacity = Math.min(u * 4, 1); coinGlow.scale.setScalar(COIN_D * 2.6);
+        stars.material.opacity = Math.min(u / 0.5, 1) * 0.9;
+        const a = launchFrom.clone().project(camera), b = launchFrom.clone().add(launchDir).project(camera);
+        const ax = (a.x + 1) / 2 * innerWidth, ay = (1 - a.y) / 2 * innerHeight;
+        const ang = Math.atan2(-(b.y - a.y) * innerHeight, (b.x - a.x) * innerWidth);
+        const rk = Math.min(Math.max((u - 0.45) / 0.65, 0), 1);
+        ripEl.style.display = rk > 0 ? 'block' : 'none';
+        ripEl.style.height = `${(rk ** 2.2 * 2.2 * Math.hypot(innerWidth, innerHeight)).toFixed(1)}px`;
+        ripEl.style.transform = `translate(${ax}px, ${ay}px) translate(-50%, -50%) rotate(${ang}rad)`;
+        if (launchT === LAUNCH_T) {                                // → the loft
+          whiteEl.style.transition = 'none'; whiteEl.style.opacity = 1; ripEl.remove();
+          state = 'white'; enterRoom();
         }
-        placeTicket(P.zip, P.zip, 0);
-        tearTicket(tear, ease(opening));
-        placeSlit(tear, opening);
-        camera.position.copy(camTo).addScaledVector(fwd, -camTo.clone().sub(P.zip.p).length() * 0.85 * ease(opening)); // push into the light
-        lookAt.copy(P.zip.p);
-        if (state !== 'white') whiteEl.style.opacity = Math.min(Math.max((opening - 0.55) / 0.45, 0), 1);
-        hintEl.classList.toggle('on', state === 'ready' && tear < 0.05);
       }
     }
   }
   camera.lookAt(lookAt);
   renderer.render(scene, camera);
 });
+
+

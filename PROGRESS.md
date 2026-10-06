@@ -267,3 +267,84 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   Mask now hangs from the upper-left peg just behind the suit, peeking out over the left shoulder. "Hobbies!" sign
   moved up-left of the hat, and the wide-screen Hobbies camera aims higher (look y 0.8) so the signs aren't pushed
   down by the top-menu clamp onto the mask.
+## Coin flip replaces the ticket + seam (2026-10-05)
+  The ticket tear didn't suit a professional portfolio. New beat: tap Neo → his hackathon-winner coin (Tripo,
+  ~/Downloads/HackathonWinnerCoin.zip → coin_raw/, gitignored) floats out of his pocket on the old ticket arc and
+  hovers in front of his chest (COIN_SHOW), swaying; flick up (or tap) → it flips end over end, rises up-right
+  (LAUNCH_T 1.7 s) with a camera-facing additive ribbon trail (TRAIL_N points, white head → blue tail), a glow sprite
+  that flares at the top, and a golden-angle starfield fading in; the white fade then enters the loft as before.
+  coin.glb built by scratchpad coin_build.py (Blender CLI): decimated 49k → 14k faces, diameter 1, face +Z, 1K JPEG
+  textures (1.0 MB); gets its own RoomEnvironment env map so the gold reads. Ticket, slit, FLY_* and tear code removed.
+  README screenshots 2-ticket / 3-tear dropped from the table (files still in docs/).
+  Update (same day): Neo now picks the coin up. ~/Downloads/Lifting.fbx (Mixamo "Lifting", With Skin on Neo's own
+  mesh, 135 f @ 30 fps, same 41-bone rig, bone lengths ratio 1.0) → public/lift.glb (118 KB, skeleton + animation only,
+  exported from a copy of neo.blend so neo.glb is untouched; tracks bind to Neo's bones by name). app.js plays a subclip
+  to frame 88 (LoopOnce, clamped): hand touches the floor ~f43 (LIFT_GRAB), coin held out ~f88. Coin lies flat at
+  COIN_FLOOR in front of his feet once tapped, follows a point just past his right knuckles (Hand→Index1 ×1.6) after
+  the grab, turning to face the camera. Close-up is wider (COIN_FRAC 0.15) and aims between his chest and the coin.
+  Flick: coin flies up-right in screen space off the top (camera static), trail is a straight streak from the release
+  point; #rip (white band with blue glow, rotated to the streak's screen angle) widens across the whole screen, then
+  the loft. There the same coin + trail fall from above and land (×1.5 scale, one bounce) at GLOBE_AT.x + 0.42,
+  z 0.72 in front of seated Neo, and stay; it fades with the About-me props when another section is open.
+  Palm-up ending (same day): in a copy of neo.blend (scratchpad neo_lift_tmp.blend, palm_bake.py) the lift action
+  gets a supination keyed frames 58→84 (smoothstep): +160° about the bone's long (Y) axis, split 60 % RightForeArm /
+  40 % RightHand so the wrist doesn't candy-wrap; index + thumb chains slerped 70 % toward rest (open hand). Re-exported
+  lift.glb. app.js: coin goes from between his knuckles to resting on the palm (Hand→Index1 ×1.1, raised 0.45·COIN_D)
+  as the wrist turns (PALM_TURN), tipped 43° toward the camera (qTilt) so its face reads; camera aims at the palm.
+  Correction: the 160° forearm+hand turn over-twisted the wrist. Redone from a clean import (palm_measure.py /
+  palm_bake2.py): palm direction measured from the finger curl at the hold (it faced sideways, toward his body);
+  the exact turn about the hand's long axis to face it up is 95.4° → keyed on RightHand ONLY (forearm untouched),
+  smoothstep frames 58→84, index/thumb opened 70 %. The coin now floats ~4 cm above the palm (Hand→Index1 ×0.7,
+  +0.85·COIN_D) with a small bob, face tipped toward the camera.
+  Coin 0.1 → 0.16 m so "HACKATHON WINNER" reads; close-up framing decoupled from coin size (CLOSE_W 0.67 m across
+  the smaller screen side). Interaction is now hold-to-spin: press anywhere → the coin flips end over end in place
+  above his palm, spinning up to 30 rad/s; release → it launches (keeping that spin). No upward drag needed; hint
+  "Hold to spin · let go to flip ↑". Loft coin uses the same size (old ×1.5 dropped).
+  Flow v3: the coin lies small (COIN_SMALL 0.45) and flat at the centre of his walk from page load. Tap → 'approach':
+  he walks (clip + ground speed ×1.7) straight to standAt (the spot facing the camera with the coin at COIN_FLOOR in
+  front of his right foot), steering toward it; then pickUp() → 'turning' + lift. The coin grows 0.45 → 1 and slerps
+  flat → facing the camera (no tilt) between the grab and the end of the palm turn; floats 0.65·COIN_D above the palm.
+  Flick: pointer down + drag up turns the coin with the finger (rotation.x += dy·0.03); release launches (30 rad/s).
+  Hold-to-spin removed. Hint back to "Flick the coin up ↑".
+  Loft shading: once the coin moves into the loft its materials switch from the intro's bright studio env map
+  (RoomEnvironment ×1.4) to loft.environment ×0.6 (same treatment as the car), and it casts/receives shadows, so it
+  takes the room's warm light, the window shadows and the globe's blue spill instead of glowing flat.
+## Sign hover jitter (2026-10-05)
+  Cause: hover changed the bob's animation-duration (2.6 s → 0.5 s), which re-maps elapsed time to a new phase, so
+  the sign snapped mid-bob (and again on leave); the SVG's feTurbulence grain + drop-shadow were re-rasterised every
+  frame of the rotate/scale; updateLoftView read offsetHeight right after writing each sign's transform (layout
+  thrash). Fix: hover now adds `scale: 1.1` (individual property, composes with the animation, .18 s transition);
+  .sign svg gets will-change: transform (own compositor layer); signs' heights are read in one pass before any
+  writes, and transform/hidden are only written when they change.
+## Lighter site (2026-10-05)
+  Signs: the SVG bob animation is gone (static tilt; hover still grows 10 %), so the grain filter rasterises once.
+  Models: glTF-Transform 4.5 (scratchpad, not in repo) — WebP textures (q86), resample on animated files, meshopt
+  (medium) → 9.66 → 4.32 MB total: neo 3.88→1.48, coin 1.05→0.51 (also simplified 16k→~5k tris), swordsman
+  1.37→0.58, mechanic 1.22→0.61, car 0.91→0.50, suit 0.81→0.40, mask 0.32→0.16, lift 0.12→0.08. Cloudflare doesn't
+  compress .glb, so this is the real download. Decoder: meshoptimizer 1.2.0 meshopt_decoder.mjs → vendor/meshopt/
+  (MIT, in LICENSES.txt; no network/eval); CSP script-src now includes 'wasm-unsafe-eval' (user approved).
+  Suit/hat now wrapped in Groups (quantised node transforms must not be overwritten; hat node's built-in 0.12 offset
+  compensated). Earth textures → WebP: blue marble 1.46→0.70 MB, topology 378→66 KB (old jpg/png removed).
+  Skipped: hidden-face "hollowing" (on Tripo meshes it removed ~1 % in the Habitual project and can punch holes).
+  Biggest remaining item: globe.gl.min.js (1.9 MB) bundles its own copy of three.js ("Multiple instances" warning).
+  Early loading: loft models go through loadModel() (one cached loadAsync promise per file, LOFT_MODELS list);
+  tapNeo() starts all five downloads, so they arrive while he walks to and picks up the coin and the loft is
+  complete as the white fades. Skip-intro still works (buildLoft simply awaits the same cached promises).
+## One renderer: globe rebuilt in three.js, idle throttling, intro freed (2026-10-05)
+  globe.gl (1.9 MB, its own bundled three.js + second WebGL context + HTML pins) removed. The globe is now part of the
+  loft scene (buildGlobe/updateGlobe in app.js): root (GLOBE_AT, scale globeK, faces the About-me camera) > tilt (x =
+  latitude toward you, home 25°) > spin (y = longitude, auto-spin one turn / 2 min) > Earth sphere (Blue Marble map +
+  emissive 0.35 + topology bump, casts shadow) + 5 pins (steel needle, orange head, invisible R·0.1 tap sphere).
+  latLng(): lng 0 at +x, east toward −z (matches SphereGeometry + equirectangular map; checked: pins on Iceland,
+  Italy, Peru, South Africa, Japan). The CSS aura is now an additive sprite behind it (pulse via scale), bob in JS.
+  Drag spins (only while "About me" is open; tilt clamped ±1.2); a tap that barely moves picks the pin in front
+  (raycast includes the Earth so back-side pins can't be hit). Picking turns the pin to face you (globe.turn eases
+  tilt/spin), holds it, and flies the camera in to 3.4·R — viewOf('globe') returns that close view while the card is
+  open, so resizes keep it. Close → level back to 25° and resume spinning. Keyboard/screen readers: visually hidden
+  .place buttons (#places) appear on focus. Signs hide while a card is open (#room.in.picked .sign).
+  Render loop: full rate while anything moves (camera flight, fades, coin landing, globe drag/turn), otherwise 30 fps
+  for the idle loops; nothing is drawn while the portfolio panel is open. freeIntro() disposes the intro scene
+  (ripple floor, stars, lights, the coin's studio env map) once the loft is built.
+  CSP: style-src is now 'self' only ('unsafe-inline' was only for globe.gl's injected CSS). Earth textures are
+  fetched at tap with the loft models (loadEarth()).
+  Testing note: the hidden preview pane runs ~2 fps and dt is capped at 0.05 s, so a 1.4 s flight takes ~14 s there.

@@ -2,30 +2,15 @@
   canvas { display: block; touch-action: none; }
   #white { position: fixed; inset: 0; z-index: 3; background: #fff; opacity: 0; pointer-events: none; }
 
-  /* ── Loft room: the 3D loft renders on the canvas; the globe floats over it ── */
+  /* ── Loft room: the 3D loft (globe included) renders on the canvas; HTML on top is signs, card, buttons ── */
   #room { position: fixed; inset: 0; z-index: 2; overflow: hidden; color: #151a22;
     font: 400 16px/1.5 system-ui, -apple-system, sans-serif; }
   #room[hidden] { display: none; }
-  /* #float is moved (in JS) so its centre sits on the spot above Neo's head */
-  #float { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s .3s; }
-  #room.in #float { opacity: 1; }
-  #room.in.away #float { opacity: 0; transition: opacity .5s; }
-  #bob { position: absolute; inset: 0; animation: bob 6s ease-in-out infinite; }
-  @keyframes bob { 50% { transform: translateY(-10px); } }
-  #globe { position: absolute; inset: 0; }
-  /* glowing blue aura behind the globe; --gd = globe diameter in px */
-  #aura { position: absolute; left: 50%; top: 50%; width: calc(var(--gd, 300px) * 2.3); aspect-ratio: 1; pointer-events: none;
-    transform: translate(-50%, -50%); border-radius: 50%; mix-blend-mode: screen;
-    background: radial-gradient(closest-side, rgba(120, 180, 255, .75) 38%, rgba(60, 130, 255, .38) 55%, rgba(40, 100, 255, .12) 75%, transparent);
-    animation: pulse 4s ease-in-out infinite; }
-  @keyframes pulse { 50% { transform: translate(-50%, -50%) scale(1.07); opacity: .8; } }
-  .pin { width: 26px; height: 26px; padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto;
-    display: grid; place-items: center; transform: translateY(-2px); transition: opacity .3s; }
-  .pin::before { content: ""; width: 13px; height: 13px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #ff9a78, #ff6a3d 45%, #b53a17); box-shadow: 0 2px 4px rgba(20, 30, 60, .35);
-    transition: transform .2s; }
-  .pin:hover::before, .pin:focus-visible::before, .pin.on::before { transform: scale(1.4); }
-  .pin:focus-visible { outline: 2px solid #2743d6; outline-offset: 2px; border-radius: 50%; }
+  /* keyboard / screen-reader buttons for the globe's pins: invisible until tabbed to */
+  .place { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .place:focus-visible { width: auto; height: auto; clip-path: none; left: 50%; top: 84px; transform: translateX(-50%);
+    padding: 8px 14px; border: 0; border-radius: 18px; background: #fff; color: #151a22; font: 600 14px/1 system-ui, sans-serif;
+    outline: 2px solid #2743d6; outline-offset: 2px; }
   #card { position: absolute; left: 24px; bottom: 24px; width: min(340px, calc(100vw - 32px)); padding: 20px 22px;
     background: #fff; border-radius: 14px; box-shadow: 0 24px 50px rgba(20, 30, 60, .18), 0 0 0 1px rgba(20, 30, 60, .06); }
   #card small { color: #6b6f78; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; }
@@ -37,13 +22,11 @@
     color: rgba(240, 244, 250, .85); text-shadow: 0 1px 4px rgba(0, 0, 0, .6); font-size: 13px; letter-spacing: .2em; text-transform: uppercase; opacity: 0; transition: opacity 1s 1.4s; pointer-events: none; }
   #room.in .tip { opacity: 1; }
   #room.picked .tip { opacity: 0; transition-delay: 0s; }
+  #room.in.picked .sign { opacity: 0; transition: opacity .3s; pointer-events: none; }   /* zoomed on a pin: clear the view */
   @media (max-width: 700px) { #card { left: 16px; right: 16px; width: auto; bottom: 16px; } }
-  /* Sections: the room ignores clicks (they reach the 3D canvas) except signs, the back button, the pin card,
-     and the globe once it's the focused section */
+  /* Sections: the room ignores clicks (they reach the 3D canvas) except signs, the back button, the pin card */
   #room { pointer-events: none; }
-  #room #card, #room .sign, #room .back { pointer-events: auto; }
-  #room[data-focus="globe"] #globe { pointer-events: auto; }
-  #room:not([data-focus="globe"]) .pin { pointer-events: none !important; }
+  #room #card, #room .sign, #room .back, #room .place { pointer-events: auto; }
   @font-face { font-family: Bangers; src: url(vendor/fonts/bangers-latin-400.woff2) format("woff2"); font-display: swap; }
   /* Comic-book signs: a jagged burst (SVG built in app.js) with halftone dots, outlined lettering and print grain */
   .sign { position: absolute; left: 0; top: 0; padding: 0; border: 0; background: none; cursor: pointer;
@@ -51,21 +34,19 @@
   #room.in .sign { opacity: 1; }
   #room .sign.decor { width: clamp(96px, 12vw, 170px); pointer-events: none; cursor: default; }
   .sign[hidden] { display: none; }
-  .sign svg { display: block; width: 100%; overflow: visible; animation: pop 2.6s ease-in-out infinite;
-    filter: drop-shadow(4px 5px 0 rgba(0, 0, 0, .55)); }
-  .sign:nth-child(2n) svg { animation-delay: -1.3s; }
-  .sign:hover svg, .sign:focus-visible svg { animation-duration: .5s; }
+  .sign svg { display: block; width: 100%; overflow: visible; transform: rotate(-4deg); transition: scale .18s;
+    filter: drop-shadow(4px 5px 0 rgba(0, 0, 0, .55)); }   /* static: the grain filter is drawn once, not every frame */
+  .sign:nth-child(2n) svg { transform: rotate(-2deg); }
+  .sign:hover svg, .sign:focus-visible svg { scale: 1.1; }
   .sign:focus-visible { outline: none; }
   .sign:focus-visible svg { filter: drop-shadow(0 0 6px #4d8dff) drop-shadow(4px 5px 0 rgba(0, 0, 0, .55)); }
-  @keyframes pop { 0%, 100% { transform: rotate(-5deg) scale(1); } 50% { transform: rotate(-2deg) scale(1.06); } }
   .back { position: absolute; left: max(20px, env(safe-area-inset-left)); top: max(20px, env(safe-area-inset-top));
     padding: 6px 16px 8px; background: #fff; color: #111; border: 3px solid #111; border-radius: 22px 18px 24px 16px;
     box-shadow: 4px 5px 0 #111; font: 400 22px/1 Bangers, Impact, "Arial Black", sans-serif;
     letter-spacing: .05em; text-transform: uppercase; cursor: pointer; transform: rotate(-4deg); }
   .back[hidden] { display: none; }
   .back:hover, .back:focus-visible { background: #ffd400; }
-  @media (prefers-reduced-motion: reduce) { #bob, #aura, .sign svg { animation: none; } #float { transition: opacity .6s; } }
-  /* typed greeting, top right of the opening screen */
+    /* typed greeting, top right of the opening screen */
   #intro { position: fixed; top: max(24px, env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); z-index: 1;
     max-width: calc(100vw - 44px); color: rgba(236, 240, 248, .94); pointer-events: none; transition: opacity .8s;
     font: 500 clamp(19px, 3.4vw, 36px)/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .02em;
@@ -133,3 +114,6 @@
   #hint.on, #start.on { opacity: 1; animation: nudge 1.6s ease-in-out infinite; }
   @keyframes nudge { 50% { transform: translateY(6px); } }
   @media (prefers-reduced-motion: reduce) { #hint.on, #start.on, #intro, #intro i { animation: none; } }
+  /* the coin's streak splitting the screen open into white (sized/rotated from app.js) */
+  #rip { position: fixed; left: 0; top: 0; z-index: 3; width: 400vmax; height: 0; display: none; pointer-events: none;
+    background: #fff; box-shadow: 0 0 18px 6px #fff, 0 0 60px 26px #8fc4ff, 0 0 140px 60px rgba(77, 141, 255, .55); }

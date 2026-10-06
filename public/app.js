@@ -739,7 +739,7 @@ function landCoin(dt) {
   trail.material.opacity = 1 - fade; coinGlow.material.opacity = 1 - fade; coinGlow.scale.setScalar(COIN_D * 2.6);
   if (fade === 1) { trail.visible = false; landT = -1; }
 }
-function enterRoom() {
+async function enterRoom() {
   if (walls) return;                              // already in the loft
   hintEl.remove();
   navEl.classList.remove('hide'); skipEl.classList.add('hide');
@@ -757,7 +757,7 @@ function enterRoom() {
   coinSpin.traverse((o) => { if (o.isMesh) { o.material.envMap = loft.environment; o.material.envMapIntensity = 0.6; o.castShadow = o.receiveShadow = true; } });
   coin.visible = trail.visible = true; coin.quaternion.identity(); coinSpin.rotation.set(0, 0, 0); coin.scale.setScalar(1);
   landAt.set(GLOBE_AT.x + 0.42, COIN_D * 0.12, 0.72); landFrom.copy(landAt).add(tmp.set(-0.8, 3, -0.5));
-  coin.position.copy(landFrom); landT = 0;
+  coin.position.copy(landFrom); coin.visible = trail.visible = false;   // it falls in once the light starts to fade
   buildGlobe();
   freeIntro();
   // Render on demand: full rate while something moves (camera flight, fades, the coin landing, globe drag/turn);
@@ -789,7 +789,13 @@ function enterRoom() {
     d.className = 'sign decor'; d.hidden = true; d.append(comicBurst(s, SECTIONS.length + i));
     return (s.el = d);
   }));
-  requestAnimationFrame(() => roomEl.classList.add('in'));
+  // Stay fully white until the loft can actually be shown — models placed, textures in, shaders compiled, a frame
+  // drawn — so the light fades straight into the room (fading at once showed the black canvas while it got ready)
+  await Promise.race([Promise.all([...LOFT_MODELS.map(loadModel), loadEarth()]).catch(() => {}), new Promise((r) => setTimeout(r, 6000))]);
+  await renderer.compileAsync(loft, loftCam).catch(() => {});
+  await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame);
+  landT = 0;
+  roomEl.classList.add('in');
   whiteEl.style.transition = 'opacity 1.6s';                           // the light fades to reveal the loft
   whiteEl.style.opacity = 0;
 }

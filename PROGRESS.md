@@ -358,3 +358,9 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   background. public/favicon.svg (calm grain, for tabs) + favicon-32.png + apple-touch-icon.png (180, fuller grain),
   rendered with sharp from the same SVG generator (shape "Sharp": tips [1,.95,1.05,.88,1], jitter [0,2,-3,4,-2],
   inner .34, tilt −6°, bend .62; viewBox cropped to 6 6 84 84). Preview on dark + light tab bars: docs/favicon-preview.png.
+## White → loft without the black flash (2026-10-06)
+  enterRoom() used to start the white fade the moment the loft was created, so during the first frames (shader
+  compiles, models attaching) the black canvas showed through the fading white. Now it's async: it waits for the
+  loft models + Earth textures (prefetched, 6 s cap), renderer.compileAsync(loft), and two drawn frames, then starts
+  the 1.6 s fade and the coin's landing (landT = 0). Measured at 60 fps: white holds at 1.0 for ~0.8 s, then fades
+  smoothly to 0 with the loft already rendered underneath.

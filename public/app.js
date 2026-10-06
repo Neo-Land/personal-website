@@ -139,8 +139,8 @@ let neo, mixer, walk, idle, lift, hit, hand, finger, neoClips;
 let launchT = 0, landT = -1, liftUsed = false, faceYaw = 0, drag = null;   // launchT / landT time the flight
 const standAt = new THREE.Vector3();                                       // where he stops to pick the coin up
 const whiteEl = document.getElementById('white'), hintEl = document.getElementById('hint');
-const startEl = document.getElementById('start');                 // "click me to begin", shown once he's walking
-startEl.textContent = matchMedia('(hover: none)').matches ? 'Tap me to begin' : 'Click me to begin';
+const startEl = document.getElementById('start');                 // "click anywhere to begin", shown once he's walking
+startEl.textContent = matchMedia('(hover: none)').matches ? 'Tap anywhere to begin' : 'Click anywhere to begin';
 
 // ══ YOUR CONTENT — edit everything in SITE; the panel is built from it ═══════════════════
 const SITE = {
@@ -344,13 +344,14 @@ function woodTex() {
   return done();
 }
 // Running-bond brick, 1 tile: colour + bump. Uneven, pitted faces, chipped edges, gritty recessed mortar.
+// Worn navy: ink-dark to faded slate-blue bricks, some with a chalky white bloom (seen where the plaster is gone).
 function brickTex() {
   const ROWS = 22, COLS = 8, S = 1024, rowH = S / ROWS, bw = S / COLS, m = 6;
   const bricks = [], r = rand(3), { gm, gb, done } = pair(S);
   for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
-    const t = r();                                          // mostly tan/orange/red-brown, a few burnt and pale ones
-    const l = t < 0.08 ? 20 + r() * 6 : t > 0.93 ? 55 + r() * 8 : 30 + r() * 18;
-    bricks.push({ x: i * bw + (j % 2) * bw / 2, y: j * rowH, h: 14 + r() * 20, s: 30 + r() * 25, l, seed: r() * 1e9 | 0 });
+    const t = r();                                          // mostly mid navy, a few near-black and a few sun-faded slate ones
+    const l = t < 0.1 ? 11 + r() * 5 : t > 0.88 ? 38 + r() * 10 : 18 + r() * 14;
+    bricks.push({ x: i * bw + (j % 2) * bw / 2, y: j * rowH, h: 212 + r() * 16, s: t > 0.88 ? 12 + r() * 14 : 24 + r() * 26, l, bloom: r() < 0.3, seed: r() * 1e9 | 0 });
   }
   const each = (fn) => { for (const b of bricks) for (const ox of [0, -S]) fn(b, b.x + ox); };
   gm.fillStyle = '#7d7266'; gm.fillRect(0, 0, S, S);       // mortar
@@ -364,6 +365,11 @@ function brickTex() {
     tilt.addColorStop(0, `rgb(${v - 18},${v - 18},${v - 18})`); tilt.addColorStop(1, `rgb(${v + 12},${v + 12},${v + 12})`);
     gb.fillStyle = tilt; gb.fillRect(x1, y1, w, h);
     const rr = rand(b.seed);
+    if (b.bloom) for (let k = 0; k < 6; k++) {               // chalky efflorescence: soft white patches
+      const bx = x1 + rr() * w, by = y1 + rr() * h, br = 6 + rr() * 22, gr = gm.createRadialGradient(bx, by, 0, bx, by, br);
+      gr.addColorStop(0, `rgba(225,230,235,${0.12 + rr() * 0.2})`); gr.addColorStop(1, 'rgba(225,230,235,0)');
+      gm.fillStyle = gr; gm.fillRect(x1, y1, w, h);
+    }
     for (let k = 0; k < 60; k++) {                          // colour speckle + soot
       gm.fillStyle = `rgba(${rr() < 0.5 ? '0,0,0' : '255,230,200'},${rr() * 0.2})`;
       gm.fillRect(x1 + rr() * (w - 4), y1 + rr() * (h - 4), 1 + rr() * 6, 1 + rr() * 4);
@@ -382,6 +388,43 @@ function brickTex() {
     }
   });
   grit(gb, S, S, 40000, 7, (v) => `rgba(0,0,0,${v * 0.25})`, (v) => `rgba(255,255,255,${v * 0.2})`, 1.5);   // fine sand grain
+  return done();
+}
+const WALL_TILE = BRICK_TILE * 2;                                  // the plaster texture spans 2×2 brick tiles
+const wrapDraw = (S, x, y, r, fn) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) if (x + ox > -r && x + ox < S + r && y + oy > -r && y + oy < S + r) fn(x + ox, y + oy); };
+// Worn lime plaster over the brick: warm and mottled, hairline cracks, chipped away in patches where brick shows
+function plasterTex({ map, bump }) {
+  const S = 2048, r = rand(Math.random() * 1e9 | 0), { gm, gb, done } = pair(S);   // new wear on every visit              // covers 2×2 brick tiles (WALL_TILE) so it repeats less
+  for (const x of [0, 1024]) for (const y of [0, 1024]) { gm.drawImage(map.image, x, y); gb.drawImage(bump.image, x, y); }
+  gb.fillStyle = 'rgba(0,0,0,.5)'; gb.fillRect(0, 0, S, S);                       // the brick sits deeper than the plaster
+  const holes = new Path2D();
+  for (let i = 0, n = 5 + r() * 5 | 0; i < n; i++) {                               // ragged patches of bare brick, big and small
+    const big = r() < 0.4, cx = r() * S, cy = r() * S, rx = (big ? 200 : 60) + r() * (big ? 300 : 140), ry = rx * (0.5 + r() * 0.4), pts = [];
+    let j = 1; for (let k = 0; k < 64; k++) { const a = k / 64 * Math.PI * 2; j = Math.min(1.25, Math.max(0.35, j + (r() - 0.5) * 0.28)); pts.push([Math.cos(a) * rx * j, Math.sin(a) * ry * j]); }
+    wrapDraw(S, cx, cy, Math.max(rx, ry) * 1.2, (x, y) => { holes.moveTo(x + pts[0][0], y + pts[0][1]); for (const [px, py] of pts) holes.lineTo(x + px, y + py); holes.closePath(); });
+  }
+  gm.strokeStyle = 'rgba(25,15,8,.55)'; gm.lineWidth = 14; gm.stroke(holes);        // shadow of the plaster lip inside each hole
+  const plaster = new Path2D(); plaster.rect(0, 0, S, S); plaster.addPath(holes);
+  for (const g of [gm, gb]) { g.save(); g.clip(plaster, 'evenodd'); }
+  gm.fillStyle = 'hsl(34, 22%, 70%)'; gm.fillRect(0, 0, S, S);
+  gb.fillStyle = 'rgb(205,205,205)'; gb.fillRect(0, 0, S, S);
+  for (let i = 0; i < 900; i++) {                                                    // mottling: soft darker / lighter clouds
+    const x = r() * S, y = r() * S, rad = 30 + r() * 160, dark = r() < 0.6, a = 0.03 + r() * 0.08;
+    wrapDraw(S, x, y, rad, (px, py) => { const gr = gm.createRadialGradient(px, py, 0, px, py, rad);
+      gr.addColorStop(0, dark ? `rgba(120,95,70,${a})` : `rgba(255,245,225,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      gm.fillStyle = gr; gm.fillRect(px - rad, py - rad, rad * 2, rad * 2); });
+  }
+  grit(gm, S, S, 100000, 31, (v) => `rgba(70,55,40,${v * 0.12})`, (v) => `rgba(255,250,235,${v * 0.1})`, 2);
+  grit(gb, S, S, 120000, 32, (v) => `rgba(0,0,0,${v * 0.25})`, (v) => `rgba(255,255,255,${v * 0.25})`, 2);
+  for (let i = 0; i < 40; i++) {                                                    // hairline cracks
+    let x = r() * S, y = r() * S, a = r() * Math.PI * 2;
+    gm.beginPath(); gb.beginPath(); gm.moveTo(x, y); gb.moveTo(x, y);
+    for (let k = 0; k < 14; k++) { a += (r() - 0.5) * 1.1; x += Math.cos(a) * 9; y += Math.sin(a) * 9; gm.lineTo(x, y); gb.lineTo(x, y); }
+    gm.strokeStyle = 'rgba(60,45,30,.35)'; gm.lineWidth = 1; gm.stroke(); gb.strokeStyle = 'rgba(0,0,0,.6)'; gb.lineWidth = 1.5; gb.stroke();
+  }
+  gm.strokeStyle = 'rgba(255,248,235,.35)'; gm.lineWidth = 5; gm.stroke(holes);     // raised, light-catching plaster lip
+  gb.strokeStyle = 'rgb(235,235,235)'; gb.lineWidth = 6; gb.stroke(holes);
+  for (const g of [gm, gb]) g.restore();
   return done();
 }
 // Steel window grid: black bars on transparent (cols × rows panes); also casts the grid shadow
@@ -410,20 +453,24 @@ function skyTex() {
 }
 function buildLoft() {
   const { map: brick, bump } = brickTex();
-  const brickMat = new THREE.MeshStandardMaterial({ map: brick, bumpMap: bump, bumpScale: 4, roughness: 0.95 });
-  const vault = brickMat.clone(); vault.color.setScalar(0.4);              // darker brick ceiling
   const steel = new THREE.MeshStandardMaterial({ color: 0x141517, roughness: 0.5, metalness: 0.6 });
   const plane = (w, h, mat, tile) => { const geo = new THREE.PlaneGeometry(w, h); if (tile) worldUV(geo, w, h, tile); const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; return m; };
   const box = (w, h, d, mat, tile) => { const geo = new THREE.BoxGeometry(w, h, d); if (tile) boxUV(geo, w, h, d, tile); const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; return m; };
 
+  // worn plaster walls over the navy brick; a warm wooden ceiling and beams
+  const p = plasterTex({ map: brick, bump });
+  const wallMat = new THREE.MeshStandardMaterial({ map: p.map, bumpMap: p.bump, bumpScale: 3, roughness: 0.92 });
+  const w = woodTex();
+  const ceilMat = new THREE.MeshStandardMaterial({ map: w.map, bumpMap: w.bump, bumpScale: 1, roughness: 0.7, color: new THREE.Color(2.4, 2, 1.6) });
+  const beamMat = new THREE.MeshStandardMaterial({ map: w.map, roughness: 0.6, color: new THREE.Color(1.9, 1.55, 1.25) });
   const wood = woodTex();
   const floor = plane(12, 12, new THREE.MeshStandardMaterial({ map: wood.map, bumpMap: wood.bump, bumpScale: 1.6, roughness: 0.42 }), 1.6);
   floor.rotation.x = -Math.PI / 2;
-  const back = plane(12, CEIL, brickMat, BRICK_TILE); back.position.set(0, CEIL / 2, BACK);
-  const left = plane(12, CEIL, brickMat, BRICK_TILE); left.rotation.y = Math.PI / 2;
-  const ceiling = plane(12, 12, vault, BRICK_TILE); ceiling.rotation.x = Math.PI / 2; ceiling.position.y = CEIL;
+  const back = plane(12, CEIL, wallMat, WALL_TILE); back.position.set(0, CEIL / 2, BACK);
+  const left = plane(6 - BACK, CEIL, wallMat, WALL_TILE); left.rotation.y = Math.PI / 2;   // from the back wall forward, not out into the view
+  const ceiling = plane(12, 12, ceilMat, BRICK_TILE); ceiling.rotation.x = Math.PI / 2; ceiling.position.y = CEIL;
   loft.add(floor, back, left, ceiling);
-  for (const z of [-1.5, -0.3, 0.9, 2.1]) { const b = box(12, 0.16, 0.1, steel); b.position.set(0, CEIL - 0.08, z); loft.add(b); }
+  for (const z of [-1.5, -0.3, 0.9, 2.1]) { const b = box(12, 0.16, 0.1, beamMat); b.position.set(0, CEIL - 0.08, z); loft.add(b); }
   const duct = box(0.3, 0.22, 12, steel); duct.position.set(-0.7, CEIL - 0.3, 0);
   const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 12, 12), steel); pipe.rotation.x = Math.PI / 2; pipe.position.set(0.55, CEIL - 0.24, 0);
   loft.add(duct, pipe);
@@ -431,10 +478,10 @@ function buildLoft() {
   // Right wall: brick piers between tall steel windows, a sill below and a header above (all cast shadows)
   const right = new THREE.Group(), T = 0.22, L = 8, zc = BACK + L / 2;
   const add = (m, x, y, z) => { m.position.set(x, y, z); right.add(m); };
-  add(box(T, SILL, L, brickMat, BRICK_TILE), T / 2, SILL / 2, zc);
-  add(box(T, CEIL - WIN_TOP, L, brickMat, BRICK_TILE), T / 2, (WIN_TOP + CEIL) / 2, zc);
+  add(box(T, SILL, L, wallMat, WALL_TILE), T / 2, SILL / 2, zc);
+  add(box(T, CEIL - WIN_TOP, L, wallMat, WALL_TILE), T / 2, (WIN_TOP + CEIL) / 2, zc);
   const piers = [[BACK, BAYS[0][0]], ...BAYS.slice(1).map((b, i) => [BAYS[i][1], b[0]]), [BAYS.at(-1)[1], BACK + L]];
-  for (const [z0, z1] of piers) add(box(T + 0.06, WIN_TOP - SILL, z1 - z0, brickMat, BRICK_TILE), T / 2 - 0.03, (SILL + WIN_TOP) / 2, (z0 + z1) / 2);
+  for (const [z0, z1] of piers) add(box(T + 0.06, WIN_TOP - SILL, z1 - z0, wallMat, WALL_TILE), T / 2 - 0.03, (SILL + WIN_TOP) / 2, (z0 + z1) / 2);
   const grid = new THREE.MeshStandardMaterial({ map: mullionTex(3, 6), color: 0x0d0e10, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.6 });
   for (const [z0, z1] of BAYS) {
     const w = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, WIN_TOP - SILL), grid);
@@ -561,7 +608,7 @@ function layoutRoom() {
   const turn = a < 1 ? 0.35 : 0;                                      // on phones, angle the view toward the windows
   overview.pos.set(-turn, 0.8, d); overview.look.set(turn * 0.6, 0.62, 0);
   loftCam.aspect = a; loftCam.updateProjectionMatrix();
-  walls.left.position.set(-roomHalf, CEIL / 2, 0);
+  walls.left.position.set(-roomHalf, CEIL / 2, (6 + BACK) / 2);
   walls.right.position.x = roomHalf;
   for (const m of [walls.back, walls.floor, walls.ceiling]) m.position.x = roomHalf - 6;   // stop at the window wall (12 m wide)
   // parked in the back-left corner, nose angled out (nearly head-on on phones, where the room is narrow)
@@ -955,20 +1002,14 @@ gltfLoader().load('neo.glb', (gltf) => {
   else setTimeout(() => state === 'walking' && startEl.classList.add('on'), 1800);
 });
 
-// Tap / click on Neo → stop, face camera, pick up the coin
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
-function pick(e) {
-  ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-  ray.setFromCamera(ptr, camera);
-  return hit && ray.intersectObject(hit).length > 0;
-}
 renderer.domElement.addEventListener('click', (e) => {
   if (!walls || focus) return;
   const s = sectionAt(e);
   if (s) goTo(s.id);
 });
 renderer.domElement.addEventListener('pointerdown', (e) => {
-  if (state === 'walking' && pick(e)) tapNeo();
+  if (state === 'walking' && neo) tapNeo();       // tap / click anywhere → he stops, faces the camera, picks up the coin
   else if (state === 'ready') {                // flick the coin up; it launches when you let go
     drag = { y: e.clientY };                   // flick up: the coin starts turning with your finger
     try { renderer.domElement.setPointerCapture(e.pointerId); } catch {} // keep the drag even if the finger leaves the canvas
@@ -1010,7 +1051,7 @@ function pickUp() {                            // face the camera and bend down 
 renderer.domElement.addEventListener('pointermove', (e) => {
   if (drag) { coinSpin.rotation.x += (drag.y - e.clientY) * 0.03; drag.y = e.clientY; }   // the coin turns with your flick
   if (e.pointerType === 'mouse') renderer.domElement.style.cursor = walls ? (!focus && sectionAt(e) ? 'pointer' : focus === 'globe' ? (globe.drag ? 'grabbing' : pinAt(e) ? 'pointer' : globeRay(e).intersectObject(walls.globeHit).length ? 'grab' : '') : '') :
-    state === 'walking' && pick(e) ? 'pointer' : state === 'ready' ? (drag ? 'grabbing' : 'grab') : '';
+    state === 'walking' ? 'pointer' : state === 'ready' ? (drag ? 'grabbing' : 'grab') : '';
 });
 
 function resize() {

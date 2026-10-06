@@ -364,3 +364,21 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   loft models + Earth textures (prefetched, 6 s cap), renderer.compileAsync(loft), and two drawn frames, then starts
   the 1.6 s fade and the coin's landing (landT = 0). Measured at 60 fps: white holds at 1.0 for ~0.8 s, then fades
   smoothly to 0 with the loft already rendered underneath.
+## Worn plaster over navy brick (2026-10-06)
+  User liked "worn plaster" from three code-drawn restyles (plaster / plaster + arch with art ledge / plaster + blue
+  tile wainscot, inspired by their reference photos) and asked for navy brick. plasterTex(): 2048 px canvas spanning
+  2×2 brick tiles (WALL_TILE = 2·BRICK_TILE, so it repeats every 3.4 m): warm lime plaster (hsl 34/22/70) with ~900
+  soft mottling clouds, grit, 40 hairline cracks, and 5 big ragged chipped-away patches (wrap-safe paths) showing the
+  brick, which sits deeper in the bump map with a shadowed lip and a light-catching plaster edge. brickTex() is now
+  worn navy: hue 212–228, mostly mid navy, ~10% near-black, ~12% sun-faded slate, 30% with chalky white bloom.
+  Ceiling + beams are the plank texture tinted warm (no more dark brick vault / steel beams). The arch/tile variants
+  and the ?style switch were removed once the choice was made. Preview: docs/loft-plaster-navy.jpg.
+  Dev capture trick: the local server accepts POSTs (site-live in .claude/launch.json) and a rAF-timed
+  canvas.toBlob() uploads full-resolution frames, independent of the preview pane's size.
+## Arch + photo view: tried, then removed (2026-10-06)
+  Built an arched opening behind the globe (code-painted mountains, then the owner's own Sierra photo cut into
+  parallax layers, then a 1.5 m hallway). The owner chose to drop it all: back to a solid back wall. Kept from that
+  work: the left wall now stops at the back wall. Plaster wear is now random per visit (5–9 patches, 40% big).
+## "Click anywhere to begin" (2026-10-06)
+  "Click me" was ambiguous (the text or the walking character?) and Neo is a small moving target on phones. Now any
+  pointerdown on the canvas while he walks starts the pickup; the cursor is a pointer over the whole intro.

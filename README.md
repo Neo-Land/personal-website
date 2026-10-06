@@ -1,6 +1,6 @@
 # Nehemias — Personal Website
 
-An interactive 3D portfolio. A rigged character ("Neo") walks an oval in a black void, every footstep rippling the floor. Tap him and he bends down to pick up his hackathon-winner coin; flick it up and it shoots off like a shooting star whose streak splits the screen open into light, revealing a moody brick loft where he sits beneath a glowing, pinned globe of places.
+An interactive 3D portfolio. A rigged character ("Neo") walks an oval in a black void, every footstep rippling the floor. Tap anywhere and he bends down to pick up his hackathon-winner coin; flick it up and it shoots off like a shooting star whose streak splits the screen open into light, revealing a moody loft of worn plaster and navy brick where he sits beneath a glowing, pinned globe of places.
 
 Built with **three.js**, **Blender**, **Mixamo**, **Tripo** (AI image-to-3D) — a static site (`public/`) with every dependency self-hosted.
 
@@ -14,7 +14,7 @@ Built with **three.js**, **Blender**, **Mixamo**, **Tripo** (AI image-to-3D) —
 2. **Greeting** — top left, typed on load: *This is Nehemias* in English, Italian, Spanish and Japanese.
 3. **One tap** — his hackathon-winner coin has been lying small at the centre of his walk all along; he walks over to it, turns to camera, bends down and picks it up (Mixamo "Lifting" + a palm-up hand turn keyed in Blender, `lift.glb`). The coin grows to full size as he lifts it and ends floating above his open palm, facing the camera.
 4. **Flick** — drag up on the coin: it turns with your finger; let go and it flips off the top of the screen, leaving a blue shooting-star streak as stars fade in; the streak then splits open into white, slicing the screen in half. In the loft the same coin falls in with its trail and lands on the floor in front of him.
-5. **Loft** — warm, moody brick loft: dark glossy hardwood, tall steel windows with a golden-hour skyline, real window shadows. Neo sits cross-legged under a floating globe with a pulsing blue aura; its pins poke out of the surface — tap one to zoom in and read its card.
+5. **Loft** — warm, moody loft: worn lime plaster chipped away to navy brick, a wooden ceiling, dark glossy hardwood, tall steel windows with a golden-hour skyline, real window shadows. Neo sits cross-legged under a floating globe with a pulsing blue aura; its pins poke out of the surface — tap one to zoom in and read its card.
 6. **Portfolio layer** — always-available *Work · About · Contact* panel, plus *Skip intro →* for visitors in a hurry.
 
 Works on phones (tap / swipe, narrower framing), respects `prefers-reduced-motion`, and the panel is a native `<dialog>` (focus trap, Esc to close).

@@ -79,6 +79,7 @@ const LIFT_GRAB = 43 / 30, LIFT_HOLD = 88 / 30;                 // s into the cl
 const PALM_TURN = [57 / 30, 83 / 30];                            // s: his hand turns palm-up (keyed in Blender)
 const CHEST_Y = 0.68;                                           // camera aims between his chest and the coin in his hand
 const CLOSE_W = 0.67;                                           // close-up: metres across the smaller screen side
+const COIN_ENV = 0.35;                                          // studio reflection strength in the intro (was 1.4: looked flat)
 const LAUNCH_T = 1.25;                                          // s from the flick to full white
 let coinEnv;
 const coin = new THREE.Group(), coinSpin = new THREE.Group();  // coin = where it is, coinSpin = sway / flip
@@ -88,7 +89,8 @@ coin.scale.setScalar(COIN_SMALL); coin.position.set(0, COIN_D * COIN_SMALL * 0.1
 const ripEl = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'rip' }));   // the screen tearing open
 gltfLoader().load('coin.glb', (g) => {
   const env = coinEnv = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;   // gold needs something to reflect
-  g.scene.traverse((o) => { if (o.isMesh) { o.material.envMap = env; o.material.envMapIntensity = 1.4; } });
+  // just a little studio reflection so the gold reads as metal; the intro's own key + blue rim lights do the shaping, like on Neo
+  g.scene.traverse((o) => { if (o.isMesh) { o.material.envMap = env; o.material.envMapIntensity = COIN_ENV; } });
   g.scene.scale.setScalar(COIN_D);
   coinSpin.add(g.scene);
 });

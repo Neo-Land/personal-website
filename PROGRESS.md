@@ -348,3 +348,5 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
   CSP: style-src is now 'self' only ('unsafe-inline' was only for globe.gl's injected CSS). Earth textures are
   fetched at tap with the loft models (loadEarth()).
   Testing note: the hidden preview pane runs ~2 fps and dt is capped at 0.05 s, so a 1.4 s flight takes ~14 s there.
+  Intro coin shading: its studio env-map reflection dropped 1.4 → 0.35 (COIN_ENV) so the intro's own lights (cool
+  hemisphere, white key front-right, blue rim back-left) shape it like Neo — deeper gold, darker lower half, highlights.

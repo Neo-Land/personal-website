@@ -166,7 +166,7 @@ const SITE = {
   email: ['nehe.landav', 'gmail.com'].join('@'),   // split so email-harvesting bots scanning this file don't match it
   linkedin: 'https://www.linkedin.com/in/nehemiaslandaverde/',
   github: 'https://github.com/Neo-Land',
-  resume: 'resume.pdf',                               // phone-free copy of the résumé
+  resume: 'Nehemias-Landaverde-Resume.pdf',           // phone-free copy of the résumé (named so it's findable in Downloads)
   cta: 'Open to internships and early-career software roles — the fastest way to reach me is email.',
 };
 // ═══════════════════════════════════════════════════════════════════════════════════════
@@ -261,6 +261,11 @@ const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const roomEl = document.getElementById('room'), cardEl = document.getElementById('card');
 // Earth textures for the globe (NASA Blue Marble + topology bump, WebP): fetched early, like the loft models
 let earthTex;
+let pageTex;
+const loadPage = () => pageTex ??= new THREE.TextureLoader().loadAsync('resume-page.webp').then((t) => {
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  walls.page.material.map = t; walls.page.material.needsUpdate = true;
+}).catch(() => {});
 const loadEarth = () => earthTex ??= Promise.all(['vendor/earth-blue-marble.webp', 'vendor/earth-topology.webp']
   .map((u) => new THREE.TextureLoader().loadAsync(u)));
 // The loft (after the reference photo): exposed brick, dark glossy hardwood, tall steel windows on the right with
@@ -493,6 +498,25 @@ function buildLoft() {
   add(sky, 4, 2.4, -0.5);
   walls = { left, right, back, floor, ceiling, car: new THREE.Group(), nook: new THREE.Group() };
   loft.add(walls.car, walls.nook);
+  // Résumé corner: a tiny campfire between the swordsman's chair and the suit rack, the résumé page floating above it
+  // in the firelight (placed in layoutRoom). Once you're there, a tap on the page opens the PDF in a new tab.
+  const camp = walls.camp = new THREE.Group(); loft.add(camp);
+  const logMat = new THREE.MeshStandardMaterial({ color: 0x3b2414, roughness: 0.9 }), stoneMat = new THREE.MeshStandardMaterial({ color: 0x5f5b57, roughness: 0.95 });
+  for (let i = 0; i < 3; i++) {                                         // three logs crossed in a star
+    const g = new THREE.Group(), log = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 0.3, 8), logMat);
+    log.rotation.z = Math.PI / 2; log.position.y = 0.024 + i * 0.016; log.castShadow = true; g.rotation.y = i * Math.PI / 3; g.add(log); camp.add(g);
+  }
+  for (let i = 0; i < 10; i++) {                                        // ring of stones
+    const st = new THREE.Mesh(new THREE.DodecahedronGeometry(0.03 + (i * 7 % 3) * 0.006), stoneMat), a = i / 10 * Math.PI * 2;
+    st.position.set(Math.cos(a) * 0.19, 0.022, Math.sin(a) * 0.19); st.rotation.set(i, i * 2, 0); st.scale.y = 0.7; camp.add(st);
+  }
+  camp.flames = [[0xff5a1a, 0.06, 0.2], [0xff9a2a, 0.045, 0.16], [0xffd65a, 0.028, 0.11]].map(([color, r, h]) => {
+    const f = new THREE.Mesh(new THREE.ConeGeometry(r, h, 10, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    f.position.y = 0.06 + h / 2; f.userData.h = h; camp.add(f); return f;
+  });
+  camp.light = new THREE.PointLight(0xff8a3d, 1.4, 2.6, 2); camp.light.position.y = 0.3; camp.add(camp.light);
+  const page = walls.page = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62 * 1811 / 1400), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, side: THREE.DoubleSide, transparent: true, opacity: PAGE_DIM }));
+  camp.add(page);
   loft.add(right);
 
   // Lighting: moody and warm
@@ -600,6 +624,20 @@ function buildNook(group) {
     const m = new THREE.AnimationMixer(man); m.clipAction(g.animations[0]).play(); m.update(0); mixers.push(m);
   });
 }
+const PAGE_Y = 0.86, PAGE_DIM = 0.5, CAMP_FORWARD = 0.9;                                     // page centre height; its opacity until opened
+let cvOpen = false;                                                     // résumé zoomed in to read
+// Campfire flicker + the page bobbing gently above it (idle animation: the 30 fps idle render is plenty)
+function updateCamp(dt, t) {
+  const c = walls.camp, k = c.userData.op ?? 1;                        // fades with the rest of the corner
+  const pm = walls.page.material, want = cvOpen ? 1 : PAGE_DIM;        // see-through until "Open résumé", then solid
+  c.userData.pageOp = calm ? want : THREE.MathUtils.lerp(c.userData.pageOp ?? PAGE_DIM, want, 1 - Math.exp(-dt * 5));
+  pm.opacity = c.userData.pageOp * k;
+  c.light.intensity = 1.4 * k * (calm ? 1 : 0.85 + 0.15 * Math.sin(t * 13) * Math.sin(t * 7.3));
+  if (calm) return;
+  c.flames.forEach((f, i) => { f.scale.set(1 + 0.08 * Math.sin(t * 9 + i), 0.85 + 0.25 * Math.abs(Math.sin(t * (6 + i * 1.7) + i)), 1); f.position.y = 0.06 + f.userData.h * f.scale.y / 2; f.rotation.y = t * (0.6 + i * 0.3); });
+  walls.page.position.y = PAGE_Y + (cvOpen ? 0 : Math.sin(t * 1.3) * 0.015);   // holds still while you read
+}
+const pageAt = (e) => (ptr.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1), ray.setFromCamera(ptr, loftCam), ray.intersectObject(walls.page).length > 0);
 // Room width + camera adapt to the screen; places the walls and the globe overlay
 function layoutRoom() {
   const a = innerWidth / innerHeight, t = Math.tan(THREE.MathUtils.degToRad(loftCam.fov / 2));
@@ -638,6 +676,14 @@ function layoutRoom() {
     walls.seat.position.copy(walls.nook.worldToLocal(new THREE.Vector3(0.5, 0, BACK + 0.4)));
     walls.seat.rotation.y = Math.atan2(overview.pos.x - 0.5, overview.pos.z - BACK - 0.4) - walls.nook.rotation.y;
   }
+  // campfire out in front of the swordsman's chair and the suit rack (toward the viewer); the page floats above it,
+  // turned to the résumé view
+  const mid = walls.seat.localToWorld(new THREE.Vector3()).lerp(walls.nook.localToWorld(new THREE.Vector3(NOOK.x, 0, 0)), 0.5).setY(0);
+  walls.camp.position.copy(mid).add(overview.pos.clone().sub(mid).setY(0).setLength(CAMP_FORWARD));
+  const cvEye = viewOf('resume', false)[0], toEye = cvEye.clone().sub(walls.camp.position).setY(0).setLength(0.15);
+  walls.page.position.set(toEye.x, PAGE_Y, toEye.z);
+  walls.camp.updateMatrixWorld(true);
+  walls.page.lookAt(cvEye);
   if (!fly) { globeK = globeKFor(focus); setCam(...viewOf(focus)); }
 }
 function setCam(pos, look) {
@@ -652,43 +698,57 @@ const SECTIONS = [
     look: () => new THREE.Vector3(GLOBE_AT.x, 0.58, 0), signAt: () => GLOBE_AT.clone().setY(GLOBE_AT.y + GLOBE_R + 0.42), hits: () => [hit, walls.globeHit] },
   { id: 'car', sign: 'Projects!', burst: '#ff8a1f', ink: '#29a9ef', tip: 'Garage under construction · more soon',
     look: () => walls.car.localToWorld(new THREE.Vector3(0, 0.4, 0.5)), signAt: () => walls.car.localToWorld(new THREE.Vector3(0, 1.05, 0.3)), hits: () => [walls.carHit] },
-  { id: 'hobbies', sign: 'Hobbies!', burst: '#4fc35a', ink: '#ffd400', tip: 'Off the clock · more soon',
-    look: () => walls.seat.localToWorld(new THREE.Vector3()).lerp(walls.nook.localToWorld(new THREE.Vector3(NOOK.x, 0, 0)), 0.5).setY(innerWidth < innerHeight ? 0.55 : 0.8),   // between chair and coat tree (aimed higher on wide screens: room for the signs)
+  { id: 'resume', sign: 'Résumé!', burst: '#4fc35a', ink: '#ffd400', tip: 'Open the résumé to read it',
+    look: () => walls.camp.position.clone().setY(innerWidth < innerHeight ? 0.55 : 0.8),   // the campfire (aimed higher on wide screens: room for the page)
     // phones: come in high, from straight in front of the nook, so the seated Neo doesn't block the view
-    eye: () => innerWidth < innerHeight ? overview.pos.clone().lerp(walls.nook.position, 0.6).setY(1.9) : undefined, signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.x - 0.42, NOOK.top + 0.32, 0)), hits: () => [walls.nookHit] },
+    eye: () => innerWidth < innerHeight ? overview.pos.clone().lerp(walls.nook.position, 0.6).setY(1.9) : undefined, signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.x - 0.42, NOOK.top + 0.32, 0)), hits: () => [walls.nookHit, walls.camp] },
 ];
 // Decorative bursts (not clickable) that pop up only while their section is in focus
-const DECOR = [
-  { section: 'hobbies', sign: "Smokin'!", burst: '#e8282b', ink: '#ffd400', signAt: () => walls.nook.localToWorld(new THREE.Vector3(NOOK.x + 0.32, 0.45, 0.2)) },
-  { section: 'hobbies', sign: 'As you wish!', burst: '#ff7ab8', ink: '#ffffff', signAt: () => walls.seat.localToWorld(new THREE.Vector3(0, 1.02, 0)) },
-];
+const DECOR = [];
 const OVERVIEW_TIP = 'Pick a spot to explore', ZOOM_IN = 0.5, FLY_TIME = 1.4;   // ZOOM_IN: share of the way the camera flies toward a section
 const overview = { pos: new THREE.Vector3(), look: new THREE.Vector3() }, camLook = new THREE.Vector3();
 let focus = null, fly = null, globeK = 1;
 // on narrow screens the globe stays small in the overview (it crowds the room) and grows when "About me" is opened
 const globeKFor = (id) => id === 'globe' || innerWidth >= innerHeight ? 1 : 0.55;
-const viewOf = (id) => {
+const viewOf = (id, zoomed = true) => {
   if (!id) return [overview.pos.clone(), overview.look.clone()];
+  if (id === 'resume' && cvOpen && zoomed) {                            // square on to the page, filling the screen
+    const p = walls.page.getWorldPosition(new THREE.Vector3()).setY(PAGE_Y), n = new THREE.Vector3(0, 0, 1).applyQuaternion(walls.page.getWorldQuaternion(new THREE.Quaternion()));
+    const tn = Math.tan(THREE.MathUtils.degToRad(loftCam.fov / 2)), g = walls.page.geometry.parameters;
+    const d = Math.max(g.height * 1.08 / 2 / tn, g.width * 1.08 / 2 / (tn * innerWidth / innerHeight));
+    return [p.clone().addScaledVector(n, d), p];
+  }
   const sec = SECTIONS.find((s) => s.id === id), look = sec.look(), eye = sec.eye?.() ?? overview.pos.clone().lerp(look, ZOOM_IN);
   if (id === 'globe' && !cardEl.hidden) return [eye.sub(GLOBE_AT).setLength(GLOBE_R * 3.4).add(GLOBE_AT), GLOBE_AT.clone()];   // close on a pin
   return [eye, look];
 };
-const tipEl = roomEl.querySelector('.tip'), backEl = document.getElementById('back');
+const tipEl = roomEl.querySelector('.tip'), backEl = document.getElementById('back'), cvEl = document.getElementById('cv'), cvBtn = document.getElementById('cv-open');
+document.getElementById('cv-dl').href = SITE.resume;
+// "Open résumé" flies the camera up to the page and makes it solid; again (or Back / Esc) settles back by the fire
+function readCv(on) {
+  cvOpen = on;
+  fly = { t: 0, from: [loftCam.position.clone(), camLook.clone()], to: viewOf('resume'), k: [globeK, globeK] };
+  cvBtn.textContent = on ? 'Close résumé' : 'Open résumé';
+  tipEl.textContent = on ? 'Download it below' : SECTIONS.find((s) => s.id === 'resume').tip;
+}
+cvBtn.onclick = () => readCv(!cvOpen);
 function goTo(id) {
   if (focus === 'globe' && !cardEl.hidden) cardEl.querySelector('.x').click();
+  if (cvOpen) { cvOpen = false; cvBtn.textContent = 'Open résumé'; }
   focus = id;
   fly = { t: 0, from: [loftCam.position.clone(), camLook.clone()], to: viewOf(id), k: [globeK, globeKFor(id)] };
   roomEl.dataset.focus = id || '';
   roomEl.classList.remove('picked');
   tipEl.textContent = id ? SECTIONS.find((s) => s.id === id).tip : OVERVIEW_TIP;
   backEl.hidden = !id;
+  cvEl.hidden = id !== 'resume';
   if (id) backEl.focus();
 }
-backEl.onclick = () => goTo(null);
-addEventListener('keydown', (e) => { if (e.key === 'Escape' && focus && !folio.open) goTo(null); });
+backEl.onclick = () => cvOpen ? readCv(false) : goTo(null);
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && focus && !folio.open) backEl.onclick(); });
 const flyPos = new THREE.Vector3(), flyLook = new THREE.Vector3();
 // While a section is open, the other sections' 3D props fade out so nothing peeks into its view
-const PROPS = { globe: () => [neo, coin, globe.root], car: () => [walls.car], hobbies: () => [walls.nook] };
+const PROPS = { globe: () => [neo, coin, globe.root], car: () => [walls.car], resume: () => [walls.nook, walls.camp] };
 function fadeSections(dt) {
   let busy = false;
   for (const s of SECTIONS) for (const o of PROPS[s.id]()) {
@@ -722,7 +782,7 @@ function updateLoftView(dt) {
     const y = Math.max((1 - v.y) / 2 * innerHeight, hs[i] + 64);                  // never above the top menu
     const tf = `translate(${(v.x + 1) / 2 * innerWidth}px, ${y}px) translate(-50%, -100%)`;
     if (s.el.style.transform !== tf) s.el.style.transform = tf;                  // untouched while the camera is still
-    const hide = !!(v.z > 1 || (s.section ? focus !== s.section : focus && focus !== s.id));
+    const hide = !!(v.z > 1 || (s.section ? focus !== s.section : focus && focus !== s.id) || (focus === 'resume' && s.id === 'resume'));   // the floating page takes its place
     if (s.el.hidden !== hide) s.el.hidden = hide;
   });
   return !!fly || fading;                                               // still moving: render at full rate
@@ -821,6 +881,7 @@ async function enterRoom() {
     mixer.update(dt); for (const m of mixers) m.update(dt);
     busy = updateLoftView(dt);
     busy = updateGlobe(dt, clock2.elapsedTime) || busy;
+    updateCamp(dt, clock2.elapsedTime);
     if (landT >= 0) { landCoin(dt); busy = true; }
     renderer.render(loft, loftCam);
   });
@@ -838,7 +899,7 @@ async function enterRoom() {
   }));
   // Stay fully white until the loft can actually be shown — models placed, textures in, shaders compiled, a frame
   // drawn — so the light fades straight into the room (fading at once showed the black canvas while it got ready)
-  await Promise.race([Promise.all([...LOFT_MODELS.map(loadModel), loadEarth()]).catch(() => {}), new Promise((r) => setTimeout(r, 6000))]);
+  await Promise.race([Promise.all([...LOFT_MODELS.map(loadModel), loadEarth(), loadPage()]).catch(() => {}), new Promise((r) => setTimeout(r, 6000))]);
   await renderer.compileAsync(loft, loftCam).catch(() => {});
   await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame);
   landT = 0;
@@ -1004,6 +1065,7 @@ gltfLoader().load('neo.glb', (gltf) => {
 
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
 renderer.domElement.addEventListener('click', (e) => {
+  if (focus === 'resume' && !cvOpen && pageAt(e)) return readCv(true);   // tapping the page opens it too
   if (!walls || focus) return;
   const s = sectionAt(e);
   if (s) goTo(s.id);
@@ -1028,7 +1090,7 @@ renderer.domElement.addEventListener('pointercancel', endDrag);
 function tapNeo() {
   startEl.remove();
   for (const m of LOFT_MODELS) loadModel(m);   // start downloading the loft while he picks up the coin
-  loadEarth();
+  loadEarth(); loadPage();
   introEl.classList.add('gone');
   navEl.classList.add('hide'); skipEl.classList.add('hide');
   // he'll end up facing the camera with the coin just in front of his right foot: walk there first
@@ -1050,7 +1112,7 @@ function pickUp() {                            // face the camera and bend down 
 }
 renderer.domElement.addEventListener('pointermove', (e) => {
   if (drag) { coinSpin.rotation.x += (drag.y - e.clientY) * 0.03; drag.y = e.clientY; }   // the coin turns with your flick
-  if (e.pointerType === 'mouse') renderer.domElement.style.cursor = walls ? (!focus && sectionAt(e) ? 'pointer' : focus === 'globe' ? (globe.drag ? 'grabbing' : pinAt(e) ? 'pointer' : globeRay(e).intersectObject(walls.globeHit).length ? 'grab' : '') : '') :
+  if (e.pointerType === 'mouse') renderer.domElement.style.cursor = walls ? (!focus && sectionAt(e) ? 'pointer' : focus === 'resume' ? (!cvOpen && pageAt(e) ? 'pointer' : '') : focus === 'globe' ? (globe.drag ? 'grabbing' : pinAt(e) ? 'pointer' : globeRay(e).intersectObject(walls.globeHit).length ? 'grab' : '') : '') :
     state === 'walking' ? 'pointer' : state === 'ready' ? (drag ? 'grabbing' : 'grab') : '';
 });
 

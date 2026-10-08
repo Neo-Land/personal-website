@@ -46,6 +46,11 @@
     letter-spacing: .05em; text-transform: uppercase; cursor: pointer; transform: rotate(-4deg); }
   .back[hidden] { display: none; }
   .back:hover, .back:focus-visible { background: #ffd400; }
+  .cv { position: absolute; left: 50%; bottom: max(60px, calc(env(safe-area-inset-bottom) + 44px)); transform: translateX(-50%);
+    display: flex; gap: 14px; pointer-events: auto; }   /* under the floating résumé */
+  .cv[hidden] { display: none; }
+  .cv .back { position: static; text-decoration: none; white-space: nowrap; }
+  .cv .back + .back { transform: rotate(3deg); }
     /* typed greeting, top right of the opening screen */
   #intro { position: fixed; top: max(24px, env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); z-index: 1;
     max-width: calc(100vw - 44px); color: rgba(236, 240, 248, .94); pointer-events: none; transition: opacity .8s;

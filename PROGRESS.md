@@ -382,3 +382,21 @@ Deploy TODO: rename neo.html → index.html (current index.html = old 2D globe p
 ## "Click anywhere to begin" (2026-10-06)
   "Click me" was ambiguous (the text or the walking character?) and Neo is a small moving target on phones. Now any
   pointerdown on the canvas while he walks starts the pickup; the cursor is a pointer over the whole intro.
+## Résumé filename (2026-10-08)
+  resume.pdf → Nehemias-Landaverde-Resume.pdf so it's findable in a recruiter's Downloads (renamed the file itself,
+  since iOS Safari ignores the download attribute). public/_redirects 301s the old /resume.pdf so shared links work.
+## "Hobbies!" → "Résumé!" campfire (2026-10-08)
+  Section id 'resume'. A tiny campfire (3 crossed logs, ring of 10 stones, 3 additive flickering cones, a warm
+  PointLight 1.4/2.6 m, no shadows) halfway between the swordsman's chair and the suit rack (walls.camp, placed in
+  layoutRoom), with the résumé page floating above it at full opacity (walls.page: MeshBasic, 0.62 m wide, 0.4 m
+  in front of the fire toward the résumé view so the rack doesn't cover it, bobbing ±1.5 cm; static under reduced
+  motion). Visible from the overview; clicking it there flies in like the sign does. Once there, a tap on the page
+  opens the PDF in a new tab (browser viewer, no download); buttons "Open résumé ↗" + "Download ↓" (download attr).
+  public/resume-page.webp (228 KB) = the PDF page flattened on white. Regenerate when the PDF changes:
+  `sips -s format png --resampleWidth 1400 public/Nehemias-Landaverde-Resume.pdf --out /tmp/p.png`, then
+  `sharp('/tmp/p.png').flatten({background:'#fff'}).webp({quality:86}).toFile('public/resume-page.webp')`.
+  (A cyan hologram version came first; replaced at the owner's request.) Hobby decor bursts removed.
+  → Revised: the fire sits CAMP_FORWARD = 0.9 m out from the chair/rack toward the overview camera (the section now
+  looks at it); the page is 50% opaque (PAGE_DIM) until "Open résumé" (readCv): the camera flies square-on to the
+  page, sized to fill the screen (viewOf('resume') when cvOpen), it fades to solid and stops bobbing. The button
+  becomes "Close résumé"; Back/Esc close it first. Tapping the page also opens it. Only "Download ↓" downloads.

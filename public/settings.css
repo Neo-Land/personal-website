@@ -1,0 +1,14 @@
+/* settings.html: temporary comparison page for the scene setting (delete once chosen) */
+* { box-sizing: border-box; }
+body { margin: 0; background: #07090f; color: #e9edf5; font: 400 16px/1.55 system-ui, -apple-system, sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 40px 20px 80px; }
+.kick, .n { margin: 0 0 8px; font: 700 11px/1 ui-monospace, Menlo, monospace; letter-spacing: .18em; text-transform: uppercase; color: #f0c36a; }
+.n b { color: #8fe3a8; }
+h1 { margin: 0 0 8px; font: 600 40px/1.1 Georgia, serif; }
+.lede { margin: 0 0 32px; color: rgba(233, 237, 245, .7); }
+.opt { margin: 0 0 28px; border-radius: 16px; overflow: hidden; background: #10141f; border: 1px solid rgba(255, 255, 255, .08); }
+.pic svg { display: block; width: 100%; height: auto; }
+.txt { padding: 18px 22px 20px; }
+.txt h2 { margin: 0 0 6px; font: 600 24px/1.2 Georgia, serif; }
+.txt p { margin: 0 0 8px; color: rgba(233, 237, 245, .78); }
+.cost { font: 600 12px/1.4 ui-monospace, Menlo, monospace; color: rgba(233, 237, 245, .55) !important; }

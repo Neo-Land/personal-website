@@ -1,0 +1,31 @@
+/* Ridge proof scene: the canvas is fixed behind tall scroll content; a CSS sky shows through the transparent canvas,
+   with fog in three.js matched to its horizon colour. Grain + vignette are CSS overlays (no post-processing pass). */
+:root { --ink: #eef2f8; --muted: rgba(238, 242, 248, .72); --gold: #f0c36a; --mono: ui-monospace, Menlo, monospace;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { color: var(--ink); font: 400 16px/1.55 system-ui, -apple-system, sans-serif;
+  background: linear-gradient(#1b2640 0%, #34456b 38%, #7d8aa8 62%, #c7a59c 78%, #8e9bb3 100%) fixed; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+.grain { position: fixed; inset: -50%; z-index: 2; pointer-events: none; opacity: .14; mix-blend-mode: overlay;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+body::after { content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(8, 10, 20, .55)); }
+@media (prefers-reduced-motion: no-preference) { .grain { animation: grain .6s steps(4) infinite; } }
+@keyframes grain { 25% { transform: translate(-6%, 4%); } 50% { transform: translate(5%, -7%); } 75% { transform: translate(-3%, -4%); } }
+
+.bar { position: fixed; inset: 0 0 auto; z-index: 3; display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; }
+.logo { display: flex; gap: 8px; align-items: center; color: var(--ink); text-decoration: none; font: 600 15px/1 var(--serif); }
+.readout { font: 600 11px/1 var(--mono); letter-spacing: .18em; color: var(--muted); }
+
+main { position: relative; z-index: 3; }
+.beat { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: 0 max(24px, 6vw);
+  max-width: 560px; text-shadow: 0 2px 12px rgba(10, 14, 30, .5); }
+.b1 { min-height: 130svh; justify-content: flex-start; padding-top: 22svh; }
+.b2 { margin-left: auto; text-align: right; align-items: flex-end; }
+.b3 { min-height: 160svh; justify-content: flex-end; padding-bottom: 14svh; }
+.kicker { margin: 0 0 10px; font: 700 11px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+h1, h2 { margin: 0; font: 600 clamp(34px, 5vw, 60px)/1.05 var(--serif); letter-spacing: -.02em; }
+.beat p { color: var(--muted); }
+.hint { margin-top: 24px; font: 600 11px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; }
+.links a { color: var(--ink); font-weight: 600; }

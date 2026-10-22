@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nehemias Landaverde — Portfolio (void prototype)</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="void.css">
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/build/three.module.js",
+  "three/addons/": "./vendor/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header class="bar">
+  <a class="logo" href="#"><img src="favicon.svg" alt="" width="26" height="26">Nehemias Landaverde</a>
+  <a class="loft" href="/">Enter the loft →</a>
+</header>
+
+<main class="stage">
+  <!-- shown at once; the live scene fades in over it when three.js + Neo are ready -->
+  <img class="poster" src="ring/sit.webp" alt="" width="900" height="900">
+  <div class="intro">
+    <p class="kicker">CS @ Montclair State ’28</p>
+    <h1>Hi, I’m Nehemias.</h1>
+    <p>I build interactive 3D and full-stack apps. Pick a card to look around.</p>
+  </div>
+  <p class="hud" id="hud" aria-hidden="true"></p>
+
+  <!-- The cards. void.js draws each as a floating 3D card from these data-* attributes; the buttons stay as the
+       keyboard / screen-reader version (and a plain grid if WebGL never starts). -->
+  <ul class="cards" id="cards">
+    <li><button type="button" class="card" data-d="hobitual" data-cat="Project · 3rd of 197" data-img="ring/hobitual.jpg">Hobitual</button></li>
+    <li><button type="button" class="card" data-d="gamify" data-cat="Project · Full-stack" data-img="ring/gamify.jpg">Gamify.Life</button></li>
+    <li><button type="button" class="card" data-d="loft" data-cat="Project · three.js" data-img="preview.jpg" data-fit="right">This website</button></li>
+    <li><button type="button" class="card" data-d="award" data-cat="Award · GirlHacks" data-img="ring/coin.webp" data-fit="contain" data-bg="#10151f">3rd of 197</button></li>
+    <li><button type="button" class="card" data-d="resume" data-cat="Résumé · PDF" data-img="resume-page.webp" data-fit="top" data-bg="#ffffff">Résumé</button></li>
+    <li><button type="button" class="card" data-d="about" data-cat="About · Montclair" data-img="ring/neo.webp" data-fit="contain" data-bg="#1c2a48">About me</button></li>
+    <li><button type="button" class="card" data-d="colorstack" data-cat="Leadership" data-bg="#f2d27e" data-ink="#151a22">ColorStack</button></li>
+    <li><button type="button" class="card" data-d="contact" data-cat="Email · LinkedIn" data-bg="#151a22">Say hi.</button></li>
+  </ul>
+</main>
+
+<dialog id="detail" aria-labelledby="d-title">
+  <button class="x" aria-label="Close" autofocus>×</button>
+  <div id="d-body"></div>
+</dialog>
+
+<!-- Card details (copied into the dialog). Plain HTML so search engines and screen readers get it all. -->
+<template id="d-hobitual">
+  <img src="ring/hobitual.jpg" alt="Hobitual's character picker with two 3D teammates">
+  <p class="kicker">Project · 3rd of 197 · GirlHacks 2026</p><h2 id="d-title">Hobitual</h2>
+  <p>A mobile-first app that turns hobbies into habits: starter plans, one-tap tiny wins, XP and levels, and Gemini hobby research kept server-side. I led the 3D character showcase: teammates as Tripo models, rigged and animated by a Blender Python pipeline I built with Claude Code. Live on Azure with email sign-in codes and Azure SQL.</p>
+  <ul class="chips"><li>three.js</li><li>Blender</li><li>Azure</li><li>Gemini</li><li>Claude Code</li></ul>
+  <p class="links"><a href="https://hobitual.club" target="_blank" rel="noopener">Live ↗</a><a href="https://github.com/Alvaro-bit-stack/Hobitual" target="_blank" rel="noopener">Code ↗</a></p>
+</template>
+<template id="d-gamify">
+  <img src="ring/gamify.jpg" alt="Gamify.Life's retro desktop sign-in window">
+  <p class="kicker">Project · Full-stack</p><h2 id="d-title">Gamify.Life</h2>
+  <p>A full-stack app that turns real-life hobbies into an RPG: 121 skills across 10 hobbies as prerequisite graphs, an XP ledger, quests and achievements, inside a retro desktop-OS interface. Server-authoritative progression validated with Zod and committed with Postgres advisory locks, row-level security, and 125+ Vitest/Playwright tests with axe accessibility checks.</p>
+  <ul class="chips"><li>Next.js</li><li>TypeScript</li><li>Supabase</li><li>PostgreSQL</li><li>Pixi.js</li></ul>
+  <p class="links"><a href="https://gamify-life-amber.vercel.app" target="_blank" rel="noopener">Live ↗</a><a href="https://github.com/Neo-Land/Gamify-Life" target="_blank" rel="noopener">Code ↗</a></p>
+</template>
+<template id="d-loft">
+  <img src="preview.jpg" alt="Nehemias's 3D character holding the hackathon coin">
+  <p class="kicker">Project · This website</p><h2 id="d-title">The 3D loft</h2>
+  <p>An interactive three.js portfolio: a rigged 3D character, a hackathon-winner coin you flick into a shooting star, and a shadow-lit loft with a pinned globe. Character pipeline from AI image-to-3D (Tripo) through Mixamo rigging and Blender cleanup. Static on Cloudflare with self-hosted dependencies, a strict CSP, HSTS and no trackers.</p>
+  <ul class="chips"><li>three.js</li><li>WebGL</li><li>Blender</li><li>Cloudflare</li></ul>
+  <p class="links"><a href="/">Enter the loft →</a></p>
+</template>
+<template id="d-award">
+  <img src="ring/coin.webp" alt="The gold hackathon-winner coin" class="contain dark">
+  <p class="kicker">Award · October 2026</p><h2 id="d-title">3rd of 197 at GirlHacks</h2>
+  <p>A 24-hour hackathon with a team of three. We built Hobitual and shipped it live on Azure before judging.</p>
+  <p class="links"><a href="https://hobitual.club" target="_blank" rel="noopener">See Hobitual ↗</a></p>
+</template>
+<template id="d-resume">
+  <img src="resume-page.webp" alt="First page of the résumé" class="top">
+  <p class="kicker">Résumé</p><h2 id="d-title">My résumé</h2>
+  <p class="links"><a href="Nehemias-Landaverde-Resume.pdf" target="_blank" rel="noopener">Open résumé ↗</a><a href="Nehemias-Landaverde-Resume.pdf" download>Download ↓</a></p>
+</template>
+<template id="d-about">
+  <p class="kicker">About</p><h2 id="d-title">A little more about me</h2>
+  <p>I’m a CS undergrad at Montclair State University (GPA 3.66). I write code in Python, Java and C, and I build full-stack web apps and interactive 3D with AI coding tools like Claude Code: I design how the pieces fit together, direct and review the code, and handle deployment, domains and security myself.</p>
+  <p>This summer I joined Podium Education’s Global Career Accelerator (Web Development track), earning partner-designed certificates with Intel, L’Oréal, OpenAI and UNESCO. Since 2023 I’ve led shifts as a lifeguard and swim instructor for the City of Union City.</p>
+  <p>Bilingual in English and Spanish, intermediate Italian (NJ Seal of Biliteracy in both). Looking for software engineering internships and early-career roles.</p>
+  <ul class="chips"><li>Python</li><li>Java</li><li>C</li><li>SQL</li><li>React</li><li>Next.js</li><li>PostgreSQL</li><li>three.js</li><li>Azure</li><li>Git</li><li>Blender</li></ul>
+</template>
+<template id="d-colorstack">
+  <p class="kicker">Leadership</p><h2 id="d-title">ColorStack @ Montclair State</h2>
+  <p>Founding tech lead bringing a ColorStack chapter to Montclair State: chapter website and recognition proposal, growing the pipeline of Black and Latinx students in computing on campus.</p>
+  <p class="links"><a href="https://github.com/Neo-Land/colorstack-msu" target="_blank" rel="noopener">Code ↗</a></p>
+</template>
+<template id="d-contact">
+  <p class="kicker">Contact</p><h2 id="d-title">Say hi</h2>
+  <p>Open to internships and early-career software roles. The fastest way to reach me is email.</p>
+  <p class="links"><a data-mail href="#">Email me</a><a href="https://www.linkedin.com/in/nehemiaslandaverde/" target="_blank" rel="noopener">LinkedIn ↗</a><a href="https://github.com/Neo-Land" target="_blank" rel="noopener">GitHub ↗</a></p>
+</template>
+
+<script type="module" src="void.js"></script>
+</body>
+</html>

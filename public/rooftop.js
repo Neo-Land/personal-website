@@ -219,16 +219,40 @@ const cards = buttons.map((b, i) => {
   scene.add(card);
   return card;
 });
-const faces = cards.flatMap((c) => c.userData.faces);
+// Hover targets: one invisible plane per card, fixed at its resting place and a little larger, so hovering doesn't
+// flicker when the card itself lifts toward you or turns edge-on mid-flip (the pointer used to slip off and back)
+const hitMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
+const hits = cards.map((c, i) => { const h = new THREE.Mesh(cardGeo, hitMat); h.userData.i = i; h.scale.setScalar(1.15); scene.add(h); return h; });
+// Inner ring: each card's title just inside the fan, following the same curve, on a faint dotted arc
+const LW = 512, LH = 96, LABEL = 0.62;
+const labels = buttons.map((b, i) => {
+  const c = document.createElement('canvas'); c.width = LW; c.height = LH;
+  const x = c.getContext('2d');
+  x.font = '800 42px ui-monospace, Menlo, monospace'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.letterSpacing = '3px';
+  const t = b.textContent.toUpperCase(), w = Math.min(x.measureText(t).width + 56, LW - 4);
+  x.fillStyle = 'rgba(22,18,34,.62)'; x.beginPath(); x.roundRect((LW - w) / 2, 8, w, LH - 16, (LH - 16) / 2); x.fill();   // a soft pill so it reads on the bright sky
+  x.fillStyle = '#fff4e0'; x.fillText(t, LW / 2, LH / 2 + 2);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(LABEL, LABEL * LH / LW), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
+  m.userData.i = i; scene.add(m); return m;
+});
+const arcGeo = new THREE.BufferGeometry(), arcLine = new THREE.Line(arcGeo, new THREE.LineDashedMaterial({ color: 0xfff1d8, dashSize: 0.03, gapSize: 0.05, transparent: true, opacity: 0.45, fog: false }));
+const faces = [...hits, ...labels];                                  // what the pointer is tested against
 // the half ring: an upright arch behind him, facing the camera, from his right side over his head to his left.
 // The cards stay put; the one you point at grows toward you.
 const ring = new THREE.Object3D(); ring.position.copy(NEO).add(new THREE.Vector3(0, 0.3, -0.15)); ring.rotation.order = 'YXZ'; scene.add(ring);
 const slot = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
+const inner = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
+ring.add(arcLine);
+const INNER = 0.79;                                                   // the title ring, as a fraction of the card ring
 // a sweep rather than a full half ring: from his right at ledge height, over his head, ending high on his left side of
 // the frame (0 … 148°) so the last card clears swashbuckler Neo's head
 const SWEEP = Math.PI * 0.82;
 function arch(rx, ry) {
   slot.forEach((s, i) => { const a = SWEEP * i / (N - 1); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
+  inner.forEach((s, i) => { const a = SWEEP * i / (N - 1); s.position.set(-Math.cos(a) * rx * INNER, Math.sin(a) * ry * INNER, 0); });
+  const pts = []; for (let j = 0; j <= 64; j++) { const a = -0.06 + (SWEEP + 0.12) * j / 64; pts.push(new THREE.Vector3(-Math.cos(a) * rx * INNER, Math.sin(a) * ry * INNER - 0.075, 0)); }
+  arcGeo.setFromPoints(pts); arcLine.computeLineDistances();          // the dotted track just under the titles
 }
 const HOVER = 1.25, LIFT = 0.12;                                              // hovered card: bigger, a little toward you
 const ringQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1);
@@ -361,11 +385,14 @@ renderer.setAnimationLoop(() => {
   }
 
   const on = focused < 0 ? (hovered >= 0 ? hovered : kbd) : -1;
+  arcLine.material.opacity = 0.45 * (1 - k) * clamp01((revealT - POP_AT) / 0.8);
   ring.getWorldQuaternion(ringQ);
   cards.forEach((m, i) => {
     const u = m.userData, a = SWEEP * i / (N - 1);
     slot[i].updateMatrixWorld(); slot[i].getWorldPosition(m.position);
     m.quaternion.copy(ringQ).multiply(rollQ.setFromAxisAngle(Z, Math.PI / 2 - a));   // fanned: each card's top points out along the curve
+    hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion);
+    const L = labels[i]; inner[i].updateMatrixWorld(); inner[i].getWorldPosition(L.position); L.quaternion.copy(m.quaternion);   // title follows the curve too
     const lit = i === on || i === focused;
     u.f += ((lit ? 1 : 0) - u.f) * Math.min(1, still ? 1 : dt * 7);   // 0 = back up, 1 = turned over
     u.flip.rotation.y = Math.PI * u.f;
@@ -381,6 +408,8 @@ renderer.setAnimationLoop(() => {
     m.scale.setScalar(u.s * Math.max(pop, 0.0001));
     const op = focused >= 0 && i !== focused ? 1 - 0.7 * k : 1;
     for (const f of u.faces) f.material.opacity = op;
+    L.material.opacity = (i === on ? 1 : 0.72) * (1 - k) * Math.min(pop, 1);   // titles brighten with their card, leave in focus
+    L.scale.setScalar(1 + (u.s - 1) * 0.5);
   });
   renderer.render(scene, camera);
 

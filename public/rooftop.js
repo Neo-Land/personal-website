@@ -11,6 +11,11 @@ const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const buttons = [...document.querySelectorAll('#cards .card')], N = buttons.length;
 const info = document.getElementById('info'), body = document.getElementById('d-body');
 const ease = (t) => t * t * (3 - 2 * t);
+const easeIO = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2), clamp01 = (t) => Math.min(Math.max(t, 0), 1);
+const easeOutBack = (t) => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
+// black until the world, Neo and the shaders are ready (no pop-in), then the opening reveal (skipped under reduced motion)
+const fade = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'fade' }));
+document.body.classList.add('arriving');
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
@@ -154,11 +159,12 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('rooftop.glb', (g) => {
     o.material = new THREE.MeshBasicMaterial({ map, toneMapped: false });   // the bake already is the final light
   });
   scene.add(g.scene);
+  worldReady = true; begin();
 });
 
 // ── Neo ──
 const NEO = new THREE.Vector3(0.6, 0.5, -4.25), SIT_YAW = Math.PI * 0.74;   // on the ledge, looking out over the river
-let mixer, sit, idle, ready = false, neo;
+let mixer, sit, idle, ready = false, neo, worldReady = false;
 new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo.glb', (g) => {
   g.scene.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
   neo = g.scene; neo.position.copy(NEO); neo.rotation.y = SIT_YAW;
@@ -166,7 +172,7 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo.glb', (g) => {
   mixer = new THREE.AnimationMixer(g.scene);
   const clip = (n) => mixer.clipAction(g.animations.find((a) => a.name === n));
   sit = clip('neo_sit'); idle = clip('neo_idle');
-  sit.play(); ready = true;
+  sit.play(); ready = true; begin();
 });
 function stand(up) {                                              // placeholder for phase 3's stand-up clip
   if (!ready) return;
@@ -199,7 +205,7 @@ function arch(rx, ry) {                                                       //
 const HOVER = 1.35, LIFT = 0.12;                                              // hovered card: bigger, a little toward you
 
 // ── camera poses: home (Neo centred, ring around him) and focus (Neo left, card up front, info on the right) ──
-const pose = { home: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 55 }, focus: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 40 } };
+const pose = { start: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 50 }, home: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 55 }, focus: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 40 } };
 let phone = false;
 function size() {
   renderer.setSize(innerWidth, innerHeight, false);
@@ -213,6 +219,9 @@ function size() {
     pose.home.p.set(2.3, 1.95, -1.3); pose.home.l.set(-0.5, 0.75, -10.5); pose.home.fov = 55;   // high, behind him: river + city below the sun
     pose.focus.p.set(2.3, 1.4, -2.0); pose.focus.l.set(1.35, 1.15, -4.7); pose.focus.fov = 40; // Neo ends up left of frame
   }
+  // the reveal starts higher, further back and looking up toward the sun over the skyline, then cranes down to him
+  pose.start.p.copy(pose.home.p).add(phone ? new THREE.Vector3(2.5, 3.5, 6) : new THREE.Vector3(4, 3.2, 7));
+  pose.start.l.copy(SUN).multiplyScalar(700).add(new THREE.Vector3(0, 30, 0)); pose.start.fov = phone ? 66 : 48;
   ring.rotation.set(-0.12, Math.atan2(pose.home.p.x - NEO.x, pose.home.p.z - NEO.z), 0);   // faces the camera, top leaning back a touch
 }
 // where the focused card floats: in front of the focus camera, a bit right of centre (above centre on phones)
@@ -224,7 +233,22 @@ const focusSpot = () => {
 // ── state: hover, focus in/out (tweens run in the loop) ──
 let hovered = -1, kbd = -1, focused = -1, t01 = 0, dir = 0;    // t01: 0 = home … 1 = focus; dir: +1 / -1 while moving
 const flyFrom = new THREE.Vector3(), tmp = new THREE.Vector3();
+// ── opening reveal ──
+const REVEAL = 4.6, POP_AT = REVEAL * 0.72, POP_GAP = 0.08, POP_LEN = 0.5;   // seconds
+let revealT = still ? REVEAL + 9 : 0, revealing = false, begun = false;
+function begin(force) {
+  if (begun || !(force || (worldReady && ready))) return;
+  begun = true;
+  renderer.compileAsync(scene, camera).catch(() => {}).then(() => { revealing = true; fade.classList.add('out'); });
+}
+setTimeout(() => begin(true), 8000);                              // a slow or failed download never leaves you on black
+function skipReveal() { if (revealing && revealT < REVEAL + 1) revealT = REVEAL + 1; }
+for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart']) addEventListener(ev, skipReveal, { passive: true });
+const par = new THREE.Vector2(), parS = new THREE.Vector2(), hp = new THREE.Vector3(), hl = new THREE.Vector3();
+addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') par.set(e.clientX / innerWidth - 0.5, e.clientY / innerHeight - 0.5); });
+
 function open(i) {
+  skipReveal();
   if (focused >= 0 && focused !== i) { focused = i; fill(i); return; }   // already up: just swap the card
   focused = i; dir = 1; cards[i].getWorldPosition(flyFrom);
   fill(i); stand(true);
@@ -251,7 +275,7 @@ buttons.forEach((b, i) => {
   b.addEventListener('focus', () => (kbd = i)); b.addEventListener('blur', () => (kbd = -1));
 });
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
-const pick = (e) => { ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ptr, camera); return ray.intersectObjects(cards)[0]?.object.userData.i ?? -1; };
+const pick = (e) => { if (revealT < POP_AT) return -1; ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ptr, camera); return ray.intersectObjects(cards)[0]?.object.userData.i ?? -1; };
 renderer.domElement.addEventListener('pointermove', (e) => { hovered = pick(e); renderer.domElement.style.cursor = hovered >= 0 ? 'pointer' : ''; });
 renderer.domElement.addEventListener('click', (e) => { const i = pick(e); if (i >= 0) open(i); else close(); });
 
@@ -266,9 +290,23 @@ renderer.setAnimationLoop(() => {
   mixer?.update(dt);
   if (dir) { t01 = Math.min(Math.max(t01 + dir * dt / (still ? 0.01 : 1.2), 0), 1); if (t01 === 0 || t01 === 1) { if (t01 === 0) focused = -1; dir = 0; } }
   const k = ease(t01);
-  camera.position.lerpVectors(pose.home.p, pose.focus.p, k);
-  camera.fov = pose.home.fov + (pose.focus.fov - pose.home.fov) * k; camera.updateProjectionMatrix();
-  tmp.lerpVectors(pose.home.l, pose.focus.l, k); camera.lookAt(tmp);
+  if (revealing) revealT += dt;
+  if (revealT >= REVEAL && document.body.classList.contains('arriving')) document.body.classList.remove('arriving');
+  // home pose + a gentle drift with the mouse and a slow breath; during the reveal, blended in from the start pose
+  hp.copy(pose.home.p); hl.copy(pose.home.l);
+  if (!still) {
+    parS.lerp(par, 1 - Math.exp(-dt * 2.5));
+    hp.x += parS.x * 0.35; hp.y += -parS.y * 0.18 + Math.sin(t * 0.35) * 0.025;
+  }
+  let fov = pose.home.fov;
+  if (revealT < REVEAL) {
+    const r = revealT / REVEAL, e = easeIO(r), e2 = easeIO(clamp01((r - 0.18) / 0.82));   // position leads, the tilt down follows
+    hp.lerpVectors(pose.start.p, hp.clone(), e); hl.lerpVectors(pose.start.l, hl.clone(), e2);
+    fov = pose.start.fov + (fov - pose.start.fov) * e;
+  }
+  camera.position.lerpVectors(hp, pose.focus.p, k);
+  camera.fov = fov + (pose.focus.fov - fov) * k; camera.updateProjectionMatrix();
+  tmp.lerpVectors(hl, pose.focus.l, k); camera.lookAt(tmp);
   sky.position.copy(camera.position);
   sky.material.uniforms.uTime.value = river.material.uniforms.uTime.value = still ? 0 : t;
   if (!still) for (const f of ferries) { f.position.x += f.userData.v * dt; if (Math.abs(f.position.x) > 900) f.position.x = -Math.sign(f.position.x) * 900; }
@@ -288,7 +326,8 @@ renderer.setAnimationLoop(() => {
       u.s += ((i === on ? HOVER : 1) - u.s) * Math.min(1, still ? 1 : dt * 10);
       m.position.addScaledVector(tmp.subVectors(camera.position, m.position).normalize(), LIFT * (u.s - 1) / (HOVER - 1));
     }
-    m.scale.setScalar(u.s);
+    const pop = easeOutBack(clamp01((revealT - POP_AT - i * POP_GAP) / POP_LEN));   // cards arrive one by one after the reveal
+    m.scale.setScalar(u.s * Math.max(pop, 0.0001));
     m.quaternion.copy(camera.quaternion);                         // always facing you
     m.material.opacity = focused >= 0 && i !== focused ? 1 - 0.7 * k : 1;
   });

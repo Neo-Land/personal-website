@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from './vendor/meshopt/meshopt_decoder.js';
-import { drawBack, drawFront } from './card-art.js';
+import { drawBack, drawFront, BACKS } from './card-art.js';
 
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const buttons = [...document.querySelectorAll('#cards .card')], N = buttons.length;
@@ -206,11 +206,11 @@ function stand(up) {                                              // placeholder
 const CW = 400, CH = 560, CARD = 0.4;                                 // poker-card proportions (5:7)
 const faceTex = (draw) => { const c = document.createElement('canvas'); c.width = CW; c.height = CH; draw(c.getContext('2d'));
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
-const backTex = faceTex((x) => drawBack(x, CW, CH));                  // one back shared by every card
+const backTex = Array.from({ length: BACKS }, (_, v) => faceTex((x) => drawBack(x, CW, CH, v)));   // five back designs, alternated
 const cardGeo = new THREE.PlaneGeometry(CARD, CARD * CH / CW);
 const cards = buttons.map((b, i) => {
   const card = new THREE.Group(), flip = new THREE.Group(); card.add(flip);
-  const back = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: backTex, transparent: true, fog: false }));
+  const back = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: backTex[i % BACKS], transparent: true, fog: false }));
   const front = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: faceTex((x) => drawFront(x, CW, CH, { d: b.dataset.d, name: b.textContent, cat: b.dataset.cat }, i)), transparent: true, fog: false }));
   front.rotation.y = Math.PI;                                          // on the other side, shown once the card turns over
   back.userData.i = front.userData.i = i;

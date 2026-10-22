@@ -1,5 +1,5 @@
 // Card faces for the rooftop scene, drawn in code (no image downloads).
-// drawBack: one original playing-card back (navy + gold, the denim star in a medallion), symmetric like a real deck.
+// drawBack: five original, aged playing-card backs in one family (cream rim, worn navy, gold engraving, the blue star).
 // drawFront: cream paper with a small hand-drawn sketch of the topic, its category on top and its name below.
 
 const INK = '#2a2f3a', GOLD = '#d9b25f', CREAM = '#f5efe3', NAVY = '#1b2744', DENIM = '#5b77a3';
@@ -16,37 +16,163 @@ function star(x, cx, cy, r, inner = 0.42) {
   x.closePath();
 }
 
-export function drawBack(x, W, H) {
+// ── backs: five designs in one family (worn cream rim, navy, gold engraving, the blue star) ──
+export const BACKS = 5;
+const RIM = 20;                                                       // the cream border
+
+function suit(x, kind, cx, cy, s) {                                   // card suits as filled paths, size s
+  x.save(); x.translate(cx, cy); x.scale(s, s); x.beginPath();
+  if (kind === 'heart') { x.moveTo(0, 0.38); x.bezierCurveTo(-0.62, -0.08, -0.36, -0.62, 0, -0.24); x.bezierCurveTo(0.36, -0.62, 0.62, -0.08, 0, 0.38); }
+  else if (kind === 'diamond') { x.moveTo(0, -0.5); x.lineTo(0.34, 0); x.lineTo(0, 0.5); x.lineTo(-0.34, 0); x.closePath(); }
+  else if (kind === 'spade') {
+    x.moveTo(0, -0.46); x.bezierCurveTo(-0.62, 0.02, -0.34, 0.46, 0, 0.16); x.bezierCurveTo(0.34, 0.46, 0.62, 0.02, 0, -0.46);
+    x.moveTo(0, 0.08); x.lineTo(0.14, 0.48); x.lineTo(-0.14, 0.48); x.closePath();
+  } else {                                                            // club
+    for (const [a, b] of [[0, -0.22], [-0.22, 0.08], [0.22, 0.08]]) { x.moveTo(a + 0.2, b); x.arc(a, b, 0.2, 0, Math.PI * 2); }
+    x.moveTo(0, 0.05); x.lineTo(0.13, 0.48); x.lineTo(-0.13, 0.48); x.closePath();
+  }
+  x.fill(); x.restore();
+}
+function curl(x, cx, cy, r, rot, flip = 1) {                          // one engraved scroll: a spiral with a sweeping tail
+  x.save(); x.translate(cx, cy); x.rotate(rot); x.scale(flip, 1); x.beginPath();
+  for (let t = 0; t <= 1.0001; t += 0.025) { const a = t * Math.PI * 2.3, rr = r * (1 - t * 0.82); t ? x.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : x.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  x.moveTo(r, 0); x.bezierCurveTo(r * 1.6, r * 0.5, r * 2.4, -r * 0.2, r * 3, -r * 1.1);
+  x.stroke(); x.restore();
+}
+function leaf(x, cx, cy, s, rot) {                                    // a small engraved leaf
+  x.save(); x.translate(cx, cy); x.rotate(rot); x.beginPath();
+  x.moveTo(0, 0); x.quadraticCurveTo(s * 0.5, -s * 0.35, s, 0); x.quadraticCurveTo(s * 0.5, s * 0.35, 0, 0); x.fill(); x.restore();
+}
+function flourish(x, cx, cy, s, rot, flip = 1) {                      // corner ornament: curls + leaves
+  x.save(); x.translate(cx, cy); x.rotate(rot); x.scale(flip, 1);
+  curl(x, 0, 0, s * 0.32, 0); curl(x, s * 0.55, s * 0.7, s * 0.22, Math.PI * 0.6, -1);
+  for (let i = 0; i < 4; i++) leaf(x, s * (0.25 + i * 0.22), -s * (0.1 + i * 0.12), s * 0.22, -0.6 + i * 0.25);
+  x.restore();
+}
+function medallion(x, cx, cy, R, fill) {                              // the blue star in a gold ring
+  x.fillStyle = fill; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = GOLD; x.lineWidth = 3; x.stroke(); x.lineWidth = 1.2; x.beginPath(); x.arc(cx, cy, R - 7, 0, Math.PI * 2); x.stroke();
+  const g = x.createRadialGradient(cx - R * 0.18, cy - R * 0.22, 2, cx, cy, R * 0.7);
+  g.addColorStop(0, '#c8d6f0'); g.addColorStop(0.45, '#7d97c9'); g.addColorStop(1, '#3e5b94');
+  star(x, cx, cy, R * 0.66, 0.44); x.fillStyle = g; x.fill();
+}
+
+// the shared card: yellowed rim, a navy field, then wear over everything (grime, rubbed edges, scratches)
+function cardBase(x, W, H, r) {
+  x.fillStyle = '#dcc596'; x.fillRect(0, 0, W, H);
+  for (let i = 0; i < 90; i++) {                                      // mottled, uneven ageing on the rim
+    const gx = r() * W, gy = r() * H, gr = 10 + r() * 50, g = x.createRadialGradient(gx, gy, 0, gx, gy, gr);
+    g.addColorStop(0, `rgba(${120 + r() * 40},${90 + r() * 30},${40 + r() * 20},${0.05 + r() * 0.12})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.fillRect(gx - gr, gy - gr, gr * 2, gr * 2);
+  }
+  x.fillStyle = NAVY; x.beginPath(); x.roundRect(RIM, RIM, W - RIM * 2, H - RIM * 2, 12); x.fill();
+  for (let i = 0; i < 40; i++) {                                      // worn, lighter blotches in the navy
+    const gx = RIM + r() * (W - RIM * 2), gy = RIM + r() * (H - RIM * 2), gr = 20 + r() * 70, g = x.createRadialGradient(gx, gy, 0, gx, gy, gr);
+    g.addColorStop(0, `rgba(150,160,190,${0.03 + r() * 0.05})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.fillRect(gx - gr, gy - gr, gr * 2, gr * 2);
+  }
+}
+function wear(x, W, H, r) {
+  const v = x.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.72);
+  v.addColorStop(0, 'rgba(60,40,15,0)'); v.addColorStop(1, 'rgba(70,45,15,.58)'); x.fillStyle = v; x.fillRect(0, 0, W, H);   // darker, handled edges
+  for (let i = 0; i < 1400; i++) { x.fillStyle = r() < 0.6 ? `rgba(40,28,12,${r() * 0.18})` : `rgba(255,245,220,${r() * 0.12})`; x.fillRect(r() * W, r() * H, 1 + r() * 2, 1 + r() * 2); }
+  x.lineWidth = 0.8;
+  for (let i = 0; i < 30; i++) {                                      // faint scratches
+    x.strokeStyle = `rgba(255,240,210,${0.06 + r() * 0.1})`; const sx = r() * W, sy = r() * H, a = r() * Math.PI, l = 20 + r() * 90;
+    x.beginPath(); x.moveTo(sx, sy); x.lineTo(sx + Math.cos(a) * l, sy + Math.sin(a) * l); x.stroke();
+  }
+  for (const [cx, cy] of [[0, 0], [W, 0], [0, H], [W, H]]) {        // rubbed corners
+    const g = x.createRadialGradient(cx, cy, 0, cx, cy, 46); g.addColorStop(0, 'rgba(250,235,200,.35)'); g.addColorStop(1, 'rgba(250,235,200,0)');
+    x.fillStyle = g; x.fillRect(cx - 46, cy - 46, 92, 92);
+  }
+}
+
+const DESIGNS = [
+  function panel(x, W, H, r) {                                        // gold corner flourishes, little suits, a gold fleur panel
+    x.fillStyle = GOLD; x.strokeStyle = GOLD; x.lineWidth = 2.2;
+    flourish(x, RIM + 34, RIM + 40, 70, 0); flourish(x, W - RIM - 34, RIM + 40, 70, 0, -1);
+    flourish(x, RIM + 34, H - RIM - 40, 70, 0, 1); x.save(); x.translate(W, H); x.rotate(Math.PI); flourish(x, RIM + 34, RIM + 40, 70, 0); x.restore();
+    star(x, RIM + 28, RIM + 30, 14); x.fillStyle = '#7d97c9'; x.fill();
+    x.fillStyle = GOLD; suit(x, 'heart', W - RIM - 30, RIM + 30, 26); suit(x, 'club', RIM + 30, H - RIM - 30, 26);
+    const px = W * 0.22, py = H * 0.2, pw = W * 0.56, ph = H * 0.6;
+    const g = x.createLinearGradient(px, py, px + pw, py + ph); g.addColorStop(0, '#d9b766'); g.addColorStop(0.5, '#c7a050'); g.addColorStop(1, '#a9843e');
+    x.fillStyle = g; x.fillRect(px, py, pw, ph);
+    x.fillStyle = 'rgba(120,85,30,.45)';
+    for (let yy = py + 22; yy < py + ph - 10; yy += 34) for (let xx = px + 20 + ((yy - py) / 34 % 2) * 18; xx < px + pw - 10; xx += 36) suit(x, 'spade', xx, yy, 14);   // fleur-ish pattern
+    x.strokeStyle = '#f0d898'; x.lineWidth = 2; x.strokeRect(px, py, pw, ph);
+  },
+  function ornate(x, W, H, r) {                                        // dense scrollwork round a big star medallion
+    x.strokeStyle = GOLD; x.fillStyle = GOLD; x.lineWidth = 2;
+    for (let i = 0; i < 26; i++) {                                    // mirrored left/right
+      const cx = RIM + 20 + r() * (W / 2 - RIM - 30), cy = RIM + 30 + r() * (H - RIM * 2 - 60), s = 12 + r() * 16, rot = r() * Math.PI * 2;
+      if (Math.hypot(cx - W / 2, cy - H / 2) < W * 0.3) continue;
+      curl(x, cx, cy, s, rot); curl(x, W - cx, cy, s, Math.PI - rot, -1);
+      leaf(x, cx + s, cy - s, s * 0.9, rot); leaf(x, W - cx - s, cy - s, s * 0.9, Math.PI - rot);
+    }
+    x.lineWidth = 2.5; x.beginPath(); x.arc(W / 2, H / 2, W * 0.3, 0, Math.PI * 2); x.stroke();
+    for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; leaf(x, W / 2 + Math.cos(a) * W * 0.3, H / 2 + Math.sin(a) * W * 0.3, 14, a); }
+    medallion(x, W / 2, H / 2, W * 0.25, NAVY);
+    for (const [px, py] of [[RIM + 24, RIM + 24], [W - RIM - 24, RIM + 24], [RIM + 24, H - RIM - 24], [W - RIM - 24, H - RIM - 24]]) { star(x, px, py, 10); x.fillStyle = GOLD; x.fill(); }
+  },
+  function ace(x, W, H, r) {                                           // plain worn navy, an ace index, the gold coin
+    x.fillStyle = GOLD; x.font = '600 50px Georgia, serif'; x.textAlign = 'center';
+    x.fillText('A', RIM + 30, RIM + 56); star(x, RIM + 30, RIM + 84, 13); x.fill();
+    x.save(); x.translate(W - RIM - 30, H - RIM - 56); x.rotate(Math.PI); x.fillText('A', 0, 0); x.restore();
+    suit(x, 'spade', W - RIM - 30, H - RIM - 98, 26); x.textAlign = 'left';
+    x.strokeStyle = GOLD; x.lineWidth = 2;
+    curl(x, W / 2 - 70, H / 2 - 66, 16, Math.PI * 0.9); curl(x, W / 2 + 70, H / 2 + 66, 16, -Math.PI * 0.1);
+    curl(x, W / 2 + 64, H / 2 - 70, 12, Math.PI * 1.3, -1); curl(x, W / 2 - 64, H / 2 + 70, 12, Math.PI * 0.3, -1);
+    const g = x.createRadialGradient(W / 2 - 18, H / 2 - 22, 6, W / 2, H / 2, 72);
+    g.addColorStop(0, '#f2d98c'); g.addColorStop(0.6, '#d0a648'); g.addColorStop(1, '#8a6a2a');
+    medallion(x, W / 2, H / 2, 68, g);
+  },
+  function sunburst(x, W, H, r) {                                      // a radial burst from one corner, rings of suits, a star disc
+    const cx = W * 0.72, cy = H * 0.7;
+    x.save(); x.beginPath(); x.roundRect(RIM, RIM, W - RIM * 2, H - RIM * 2, 12); x.clip();
+    x.strokeStyle = GOLD; x.fillStyle = GOLD;
+    for (let i = 0; i < 96; i++) { const a = i * Math.PI * 2 / 96; x.lineWidth = i % 4 ? 0.8 : 2; x.beginPath(); x.moveTo(cx + Math.cos(a) * 70, cy + Math.sin(a) * 70); x.lineTo(cx + Math.cos(a) * 640, cy + Math.sin(a) * 640); x.stroke(); }
+    for (const [rad, n, kinds] of [[150, 18, ['heart', 'spade']], [250, 28, ['club', 'diamond']], [360, 40, ['spade', 'heart', 'club', 'diamond']]]) {
+      x.lineWidth = 2; x.beginPath(); x.arc(cx, cy, rad - 26, 0, Math.PI * 2); x.stroke(); x.beginPath(); x.arc(cx, cy, rad + 26, 0, Math.PI * 2); x.stroke();
+      for (let i = 0; i < n; i++) {
+        const a = i * Math.PI * 2 / n, px = cx + Math.cos(a) * rad, py = cy + Math.sin(a) * rad;
+        x.fillStyle = NAVY; x.beginPath(); x.arc(px, py, 19, 0, Math.PI * 2); x.fill(); x.strokeStyle = GOLD; x.lineWidth = 1.5; x.stroke();
+        x.fillStyle = GOLD; suit(x, kinds[i % kinds.length], px, py, 22);
+      }
+    }
+    x.restore();
+    medallion(x, cx, cy, 66, NAVY);
+  },
+  function crown(x, W, H, r) {                                         // a court card: mirrored crowns, engraved swirls, star medallions
+    const half = (flipIt) => {
+      x.save(); if (flipIt) { x.translate(W, H); x.rotate(Math.PI); }
+      x.fillStyle = GOLD; x.strokeStyle = GOLD; x.lineWidth = 2;
+      const cx = W / 2, cy = H * 0.3;
+      x.beginPath(); x.moveTo(cx - 70, cy + 30); x.lineTo(cx - 80, cy - 34); x.lineTo(cx - 40, cy - 4); x.lineTo(cx, cy - 52); x.lineTo(cx + 40, cy - 4); x.lineTo(cx + 80, cy - 34); x.lineTo(cx + 70, cy + 30); x.closePath(); x.fill();
+      x.fillStyle = NAVY; x.fillRect(cx - 70, cy + 12, 140, 8);
+      for (const dx of [-80, 0, 80]) { x.fillStyle = GOLD; x.beginPath(); x.arc(cx + dx, dx ? cy - 40 : cy - 58, 7, 0, Math.PI * 2); x.fill(); }
+      x.fillStyle = '#7d97c9'; for (const dx of [-36, 0, 36]) { x.beginPath(); x.arc(cx + dx, cy + 18, 5, 0, Math.PI * 2); x.fill(); }
+      x.fillStyle = GOLD;
+      for (let i = 0; i < 7; i++) { curl(x, cx - 120 + i * 40, cy + 70 + (i % 2) * 18, 13, i * 0.9); }
+      medallion(x, RIM + 52, RIM + 52, 34, NAVY);
+      x.restore();
+    };
+    half(false); half(true);
+    x.strokeStyle = GOLD; x.lineWidth = 2; x.beginPath(); x.moveTo(RIM + 16, H / 2); x.lineTo(W - RIM - 16, H / 2); x.stroke();
+    x.fillStyle = GOLD; suit(x, 'diamond', W / 2, H / 2, 30);
+  },
+];
+
+export function drawBack(x, W, H, variant = 0) {
+  const r = rng(77 + variant * 13);
   x.clearRect(0, 0, W, H);
   x.save();
-  x.beginPath(); x.roundRect(0, 0, W, H, 26); x.clip();
-  x.fillStyle = CREAM; x.fillRect(0, 0, W, H);                          // white rim like a real card
-  x.fillStyle = NAVY; x.beginPath(); x.roundRect(16, 16, W - 32, H - 32, 16); x.fill();
-  // fine gold lattice inside a double frame
-  x.save(); x.beginPath(); x.roundRect(30, 30, W - 60, H - 60, 10); x.clip();
-  x.strokeStyle = 'rgba(217,178,95,.28)'; x.lineWidth = 1.5;
-  for (let d = -H; d < W + H; d += 22) {
-    x.beginPath(); x.moveTo(d, 0); x.lineTo(d + H, H); x.stroke();
-    x.beginPath(); x.moveTo(d, H); x.lineTo(d + H, 0); x.stroke();
-  }
+  x.beginPath(); x.roundRect(0, 0, W, H, 24); x.clip();
+  cardBase(x, W, H, r);
+  x.save(); x.beginPath(); x.roundRect(RIM, RIM, W - RIM * 2, H - RIM * 2, 12); x.clip();
+  DESIGNS[variant % DESIGNS.length](x, W, H, r);
   x.restore();
-  x.strokeStyle = GOLD; x.lineWidth = 3; x.beginPath(); x.roundRect(30, 30, W - 60, H - 60, 10); x.stroke();
-  x.lineWidth = 1.2; x.beginPath(); x.roundRect(40, 40, W - 80, H - 80, 7); x.stroke();
-  // centre medallion with the denim star
-  const cx = W / 2, cy = H / 2, R = W * 0.26;
-  x.fillStyle = NAVY; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.fill();
-  x.strokeStyle = GOLD; x.lineWidth = 3; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.stroke();
-  x.lineWidth = 1.2; x.beginPath(); x.arc(cx, cy, R - 9, 0, Math.PI * 2); x.stroke();
-  for (let i = 0; i < 24; i++) {                                        // tick marks round the ring
-    const a = i * Math.PI / 12; x.beginPath();
-    x.moveTo(cx + Math.cos(a) * (R - 9), cy + Math.sin(a) * (R - 9)); x.lineTo(cx + Math.cos(a) * (R - 18), cy + Math.sin(a) * (R - 18)); x.stroke();
-  }
-  const g = x.createRadialGradient(cx - R * 0.15, cy - R * 0.2, 2, cx, cy, R * 0.6);
-  g.addColorStop(0, '#a9bbd6'); g.addColorStop(0.5, DENIM); g.addColorStop(1, '#1c3560');
-  star(x, cx, cy, R * 0.6); x.fillStyle = g; x.fill(); x.strokeStyle = GOLD; x.lineWidth = 2; x.stroke();
-  // little stars top and bottom, mirrored
-  for (const y of [H * 0.17, H * 0.83]) { star(x, cx, y, 16); x.fillStyle = GOLD; x.fill(); }
-  for (const [px, py] of [[62, 62], [W - 62, 62], [62, H - 62], [W - 62, H - 62]]) { star(x, px, py, 8); x.fillStyle = GOLD; x.fill(); }
+  x.strokeStyle = 'rgba(217,178,95,.7)'; x.lineWidth = 1.5; x.beginPath(); x.roundRect(RIM + 6, RIM + 6, W - RIM * 2 - 12, H - RIM * 2 - 12, 9); x.stroke();
+  wear(x, W, H, r);
   x.restore();
 }
 
@@ -150,5 +276,6 @@ export function drawFront(x, W, H, { d, name, cat }, seed) {
   (SKETCH[d] || (() => {}))(x, p, W, H);
   x.fillStyle = INK; x.font = '700 40px "Marker Felt", "Chalkboard SE", "Segoe Print", cursive';
   x.fillText(name, 40, H - 52);
+  wear(x, W, H, r);                                                   // same handled look as the backs
   x.restore();
 }

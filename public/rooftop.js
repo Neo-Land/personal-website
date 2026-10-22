@@ -56,25 +56,10 @@ const sun = new THREE.DirectionalLight(0xffb070, 2.6); sun.position.copy(SUN).mu
 const bounce = new THREE.DirectionalLight(0x8a90b8, 0.4); bounce.position.set(4, 3, 3); scene.add(bounce);               // cool bounce from the roof side
 const warm = new THREE.PointLight(0xffc27a, 3, 7, 1.5); warm.position.set(0, 2.2, -1.6); scene.add(warm);   // string lights' spill
 
-// ── the world: near (baked in Blender), mid (live, low-poly: slope, trees, shore road, ferries), far (skyline) ──
-// the Palisades: on the left a wooded slope down to a shore road; on the right the cliff drops straight into the river
-const earth = new THREE.MeshBasicMaterial({ color: 0x4a3226 });
-const slope = new THREE.Mesh(new THREE.PlaneGeometry(260, 100), earth);
-slope.position.set(-140, -49, -75); slope.rotation.x = -Math.PI / 2 + Math.atan2(67, 70); scene.add(slope);
-const road = new THREE.Mesh(new THREE.PlaneGeometry(260, 7), new THREE.MeshBasicMaterial({ color: 0x6b5a50 }));
-road.rotation.x = -Math.PI / 2; road.position.set(-140, -83.4, -113); scene.add(road);
-const cliffFace = new THREE.Mesh(new THREE.PlaneGeometry(300, 72), new THREE.MeshBasicMaterial({ color: 0x3a2722 }));   // under the façade
-cliffFace.position.set(140, -50, -5.2); scene.add(cliffFace);
-// autumn trees on the slope: one instanced draw, faceted icosahedra in five autumn colours
-const TREES = 900, trees = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshLambertMaterial({ flatShading: true }), TREES);
-const leaf = [0xc4502a, 0xd97b2e, 0xa8361f, 0x7a6a2a, 0xe0a040].map((c) => new THREE.Color(c));
-for (let i = 0; i < TREES; i++) {
-  const sz = 2.5 + Math.random() * 3, u = Math.random(), x = -10 - Math.random() * 260;   // the wooded slope, left of the building
-  const y = -16 - u * 67 + sz * 0.6, z = -40 - u * 70;
-  trees.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().random(), new THREE.Vector3(sz, sz * 0.85, sz)));
-  trees.setColorAt(i, leaf[i % leaf.length]);
-}
-scene.add(trees);
+// ── the world: near (baked in Blender), mid (live: the cliff, the river, ferries), far (skyline on its waterfront) ──
+// the Palisades: the cliff drops from under the building straight into the river, so the view over the ledge is open water
+const cliffFace = new THREE.Mesh(new THREE.PlaneGeometry(600, 72), new THREE.MeshBasicMaterial({ color: 0x3a2722 }));
+cliffFace.position.set(0, -50, -5.2); scene.add(cliffFace);
 // the river: live — a few travelling waves tilt the normal; the sky reflects by angle and the sun leaves a streak
 const river = new THREE.Mesh(new THREE.PlaneGeometry(5000, 2000), new THREE.ShaderMaterial({
   fog: true, toneMapped: false,
@@ -115,6 +100,24 @@ const ferries = [[-200, -330, 6], [150, -560, -4.5], [-420, -780, 3.5]].map(([x,
   wake.rotation.x = -Math.PI / 2; wake.position.set(-Math.sign(v) * 56, 0.1, 0); if (v < 0) wake.rotation.z = Math.PI;
   f.add(hull, cabin, wake); f.position.set(x, -84, z); f.userData.v = v; scene.add(f); return f;
 });
+// Manhattan's ground: a low slab the skyline stands on, a seawall facing us, piers, and low buildings along the
+// waterfront so the towers rise out of a city instead of the water. All instanced, coloured to sink into the haze.
+const SKY_X = 280;                                               // = the skyline's shift in the loader below
+const land = new THREE.Mesh(new THREE.BoxGeometry(2500, 4, 1000), new THREE.MeshBasicMaterial({ color: 0x5a4640 }));
+land.position.set(SKY_X, -84, -1290); scene.add(land);           // top at y -82, front (the seawall) at z -790
+const lowMat = new THREE.MeshBasicMaterial({ color: 0x4a3a3c });
+const PIERS = 34, piers = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), lowMat, PIERS);
+for (let i = 0; i < PIERS; i++) {
+  const x = SKY_X - 1200 + i * 72 + (Math.random() - 0.5) * 20, len = 40 + Math.random() * 50;
+  piers.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3(x, -83, -790 + len / 2), new THREE.Quaternion(), new THREE.Vector3(10 + Math.random() * 10, 2.5, len)));
+}
+scene.add(piers);
+const LOW = 260, low = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), lowMat, LOW);
+for (let i = 0; i < LOW; i++) {
+  const h = 6 + Math.random() * 28, x = SKY_X - 1220 + Math.random() * 2440, z = -800 - Math.random() * 90;
+  low.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3(x, -82 + h / 2, z), new THREE.Quaternion(), new THREE.Vector3(14 + Math.random() * 24, h, 12 + Math.random() * 20)));
+}
+scene.add(low);
 // far-left industrial shore: a few stacks fading into the haze
 const stackMat = new THREE.MeshBasicMaterial({ color: 0x3a3036 });
 for (const [x, h, z] of [[-820, 120, -1250], [-780, 95, -1270], [-735, 140, -1240], [-690, 80, -1300], [-900, 60, -1220]]) {
@@ -152,9 +155,10 @@ const windows = new THREE.ShaderMaterial({
     }`,
 });
 new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('rooftop.glb', (g) => {
+  g.scene.getObjectByName('below')?.removeFromParent();          // the rooftops under the ledge: dropped, the view stays open
   g.scene.traverse((o) => {
     if (!o.isMesh) return;
-    if (o.name.startsWith('skyline')) { o.material = windows; o.position.x += 280; return; }   // skyline to the right of the river
+    if (o.name.startsWith('skyline')) { o.material = windows; o.position.x += SKY_X; return; }   // skyline to the right of the river
     const map = o.material.map; map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
     o.material = new THREE.MeshBasicMaterial({ map, toneMapped: false });   // the bake already is the final light
   });

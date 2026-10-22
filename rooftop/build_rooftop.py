@@ -187,15 +187,16 @@ def bake(ob, res):
     img.filepath_raw = os.path.join(OUT, f'{ob.name}_bake.png'); img.file_format = 'PNG'; img.save()
     return img
 
-baked = {ob.name: bake(ob, res) for ob, res in ((deck, 2048), (ledge, 2048), (props, 1024), (below, 1024))}
+below.select_set(False); bpy.data.objects.remove(below)            # dropped 2026-10-22: the view over the ledge stays open
+baked = {ob.name: bake(ob, res) for ob, res in ((deck, 2048), (ledge, 2048), (props, 1024))}
 # export materials: just the baked image (three.js shows it unlit); skyline keeps its plain material
-for ob in (deck, ledge, props, below):
+for ob in (deck, ledge, props):
     m = bpy.data.materials.new(f'{ob.name}_baked'); m.use_nodes = True
     t = m.node_tree.nodes.new('ShaderNodeTexImage'); t.image = baked[ob.name]
     m.node_tree.links.new(t.outputs['Color'], m.node_tree.nodes['Principled BSDF'].inputs['Base Color'])
     ob.data.materials.clear(); ob.data.materials.append(m)
 bpy.ops.object.select_all(action='DESELECT')
-for ob in (deck, ledge, props, below, skyline): ob.select_set(True)
+for ob in (deck, ledge, props, skyline): ob.select_set(True)
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'rooftop_raw.glb'), use_selection=True, export_format='GLB',
                           export_lights=False, export_cameras=False)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, 'rooftop.blend'))

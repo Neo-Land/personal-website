@@ -178,6 +178,20 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo.glb', (g) => {
   sit = clip('neo_sit'); idle = clip('neo_idle');
   sit.play(); ready = true; begin();
 });
+// swashbuckler Neo (the loft's swordsman outfit): sitting on the roof-side edge of the ledge, legs over the roof,
+// turned to face the camera. His slouch was keyfamed for a chair with a 0.25 m seat, so he sits 0.25 below the coping.
+const SWORD = new THREE.Vector3(2.05, 0.5 - 0.25, -3.85);
+let swordMixer;
+new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('swordsman.glb', (g) => {
+  g.scene.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+  g.scene.position.copy(SWORD);
+  scene.add(g.scene);
+  swordMixer = new THREE.AnimationMixer(g.scene);
+  swordMixer.clipAction(g.animations[0]).play();
+  faceCamera = () => { g.scene.rotation.y = Math.atan2(pose.home.p.x - SWORD.x, pose.home.p.z - SWORD.z); };
+  faceCamera();
+});
+let faceCamera = () => {};
 function stand(up) {                                              // placeholder for phase 3's stand-up clip
   if (!ready) return;
   const [from, to] = up ? [sit, idle] : [idle, sit];
@@ -220,12 +234,13 @@ function size() {
     pose.focus.p.set(1.9, 1.75, -1.0); pose.focus.l.set(0.95, 1.4, -4.6); pose.focus.fov = 55;
   } else {
     arch(1.65, 1.3);
-    pose.home.p.set(2.3, 1.95, -1.3); pose.home.l.set(-0.5, 0.75, -10.5); pose.home.fov = 55;   // high, behind him: river + city below the sun
+    pose.home.p.set(2.35, 2.05, -0.55); pose.home.l.set(-0.5, 0.75, -10.5); pose.home.fov = 55;   // high, behind him: river + city below the sun
     pose.focus.p.set(2.3, 1.4, -2.0); pose.focus.l.set(1.35, 1.15, -4.7); pose.focus.fov = 40; // Neo ends up left of frame
   }
   // the reveal starts higher, further back and looking up toward the sun over the skyline, then cranes down to him
   pose.start.p.copy(pose.home.p).add(phone ? new THREE.Vector3(2.5, 3.5, 6) : new THREE.Vector3(4, 3.2, 7));
   pose.start.l.copy(SUN).multiplyScalar(700).add(new THREE.Vector3(0, 30, 0)); pose.start.fov = phone ? 66 : 48;
+  faceCamera();
   ring.rotation.set(-0.12, Math.atan2(pose.home.p.x - NEO.x, pose.home.p.z - NEO.z), 0);   // faces the camera, top leaning back a touch
 }
 // where the focused card floats: in front of the focus camera, a bit right of centre (above centre on phones)
@@ -291,7 +306,7 @@ let frames = 0, acc = 0;
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
-  mixer?.update(dt);
+  mixer?.update(dt); swordMixer?.update(dt);
   if (dir) { t01 = Math.min(Math.max(t01 + dir * dt / (still ? 0.01 : 1.2), 0), 1); if (t01 === 0 || t01 === 1) { if (t01 === 0) focused = -1; dir = 0; } }
   const k = ease(t01);
   if (revealing) revealT += dt;

@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from './vendor/meshopt/meshopt_decoder.js';
+import { drawBack, drawFront } from './card-art.js';
 
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const buttons = [...document.querySelectorAll('#cards .card')], N = buttons.length;
@@ -201,21 +202,24 @@ function stand(up) {                                              // placeholder
   to.reset().play(); from.crossFadeTo(to, 0.9, false);
 }
 
-// ── cards: grey stand-ins with their name, fixed on a half ring arching over him ──
-const CW = 240, CH = 320, CARD = 0.4;
+// ── cards: playing cards fanned along the curve, back up; hovering flips one to its hand-drawn topic sketch ──
+const CW = 400, CH = 560, CARD = 0.4;                                 // poker-card proportions (5:7)
+const faceTex = (draw) => { const c = document.createElement('canvas'); c.width = CW; c.height = CH; draw(c.getContext('2d'));
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+const backTex = faceTex((x) => drawBack(x, CW, CH));                  // one back shared by every card
+const cardGeo = new THREE.PlaneGeometry(CARD, CARD * CH / CW);
 const cards = buttons.map((b, i) => {
-  const c = document.createElement('canvas'); c.width = CW; c.height = CH;
-  const x = c.getContext('2d');
-  x.fillStyle = '#a7adb8'; x.beginPath(); x.roundRect(0, 0, CW, CH, 18); x.fill();
-  x.fillStyle = '#2a2f3a'; x.font = '700 15px ui-monospace, Menlo, monospace'; x.fillText(b.dataset.cat.toUpperCase(), 18, 34);
-  x.font = '600 30px Georgia, serif'; x.fillText(b.textContent, 18, CH - 26);
-  x.strokeStyle = '#2a2f3a'; x.lineWidth = 3; x.beginPath(); x.moveTo(18, CH / 2); x.lineTo(CW - 18, CH / 2); x.stroke();
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(CARD, CARD * CH / CW), new THREE.MeshBasicMaterial({ map: tex, transparent: true, fog: false }));
-  m.userData = { i, s: 1 };
-  scene.add(m);
-  return m;
+  const card = new THREE.Group(), flip = new THREE.Group(); card.add(flip);
+  const back = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: backTex, transparent: true, fog: false }));
+  const front = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: faceTex((x) => drawFront(x, CW, CH, { d: b.dataset.d, name: b.textContent, cat: b.dataset.cat }, i)), transparent: true, fog: false }));
+  front.rotation.y = Math.PI;                                          // on the other side, shown once the card turns over
+  back.userData.i = front.userData.i = i;
+  flip.add(back, front);
+  card.userData = { i, s: 1, f: 0, flip, faces: [back, front] };
+  scene.add(card);
+  return card;
 });
+const faces = cards.flatMap((c) => c.userData.faces);
 // the half ring: an upright arch behind him, facing the camera, from his right side over his head to his left.
 // The cards stay put; the one you point at grows toward you.
 const ring = new THREE.Object3D(); ring.position.copy(NEO).add(new THREE.Vector3(0, 0.3, -0.15)); ring.rotation.order = 'YXZ'; scene.add(ring);
@@ -226,7 +230,8 @@ const SWEEP = Math.PI * 0.82;
 function arch(rx, ry) {
   slot.forEach((s, i) => { const a = SWEEP * i / (N - 1); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
 }
-const HOVER = 1.35, LIFT = 0.12;                                              // hovered card: bigger, a little toward you
+const HOVER = 1.25, LIFT = 0.12;                                              // hovered card: bigger, a little toward you
+const ringQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1);
 
 // ── camera poses: home (Neo centred, ring around him) and focus (Neo left, card up front, info on the right) ──
 const pose = { start: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 50 }, home: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 55 }, focus: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 40 } };
@@ -275,7 +280,7 @@ addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') par.set(
 function open(i) {
   skipReveal();
   if (focused >= 0 && focused !== i) { focused = i; fill(i); return; }   // already up: just swap the card
-  focused = i; dir = 1; cards[i].getWorldPosition(flyFrom);
+  focused = i; dir = 1; flyFrom.copy(cards[i].position);
   fill(i); stand(true);
   document.body.classList.add('focused');
   info.hidden = false;
@@ -295,14 +300,29 @@ function close() {
 }
 document.getElementById('back').addEventListener('click', close);
 addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+// what a card does: the résumé downloads straight away; the rest open their info
+function act(i) {
+  if (buttons[i].dataset.d === 'resume') {
+    skipReveal();
+    Object.assign(document.createElement('a'), { href: 'Nehemias-Landaverde-Resume.pdf', download: 'Nehemias-Landaverde-Resume.pdf' }).click();
+    return;
+  }
+  open(i);
+}
 buttons.forEach((b, i) => {
-  b.addEventListener('click', () => open(i));
+  b.addEventListener('click', () => act(i));
   b.addEventListener('focus', () => (kbd = i)); b.addEventListener('blur', () => (kbd = -1));
 });
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
-const pick = (e) => { if (revealT < POP_AT) return -1; ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ptr, camera); return ray.intersectObjects(cards)[0]?.object.userData.i ?? -1; };
-renderer.domElement.addEventListener('pointermove', (e) => { hovered = pick(e); renderer.domElement.style.cursor = hovered >= 0 ? 'pointer' : ''; });
-renderer.domElement.addEventListener('click', (e) => { const i = pick(e); if (i >= 0) open(i); else close(); });
+const pick = (e) => { if (revealT < POP_AT) return -1; ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ptr, camera); return ray.intersectObjects(faces)[0]?.object.userData.i ?? -1; };
+renderer.domElement.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse') return; hovered = pick(e); renderer.domElement.style.cursor = hovered >= 0 ? 'pointer' : ''; });
+// touch has no hover: the first tap turns a card over, a second tap on it acts
+let tapFlip = false;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse') return;
+  const i = pick(e); tapFlip = i >= 0 && i !== hovered && focused < 0; if (tapFlip) hovered = i;
+});
+renderer.domElement.addEventListener('click', (e) => { if (tapFlip) { tapFlip = false; return; } const i = pick(e); if (i >= 0) act(i); else close(); });
 
 // ── perf readout (?perf) ──
 const perfEl = document.getElementById('perf'), PERF = new URLSearchParams(location.search).has('perf');
@@ -341,11 +361,17 @@ renderer.setAnimationLoop(() => {
   }
 
   const on = focused < 0 ? (hovered >= 0 ? hovered : kbd) : -1;
+  ring.getWorldQuaternion(ringQ);
   cards.forEach((m, i) => {
+    const u = m.userData, a = SWEEP * i / (N - 1);
     slot[i].updateMatrixWorld(); slot[i].getWorldPosition(m.position);
-    const u = m.userData;
-    if (i === focused) {                                          // fly from its place in the ring to the spot up front
+    m.quaternion.copy(ringQ).multiply(rollQ.setFromAxisAngle(Z, Math.PI / 2 - a));   // fanned: each card's top points out along the curve
+    const lit = i === on || i === focused;
+    u.f += ((lit ? 1 : 0) - u.f) * Math.min(1, still ? 1 : dt * 7);   // 0 = back up, 1 = turned over
+    u.flip.rotation.y = Math.PI * u.f;
+    if (i === focused) {                                          // fly from its place on the curve to the spot up front, upright
       m.position.lerpVectors(dir === -1 ? m.position : flyFrom, focusSpot(), k);
+      m.quaternion.slerp(camera.quaternion, k);
       u.s = 1 + k * (phone ? 0.9 : 0.8);
     } else {
       u.s += ((i === on ? HOVER : 1) - u.s) * Math.min(1, still ? 1 : dt * 10);
@@ -353,8 +379,8 @@ renderer.setAnimationLoop(() => {
     }
     const pop = easeOutBack(clamp01((revealT - POP_AT - i * POP_GAP) / POP_LEN));   // cards arrive one by one after the reveal
     m.scale.setScalar(u.s * Math.max(pop, 0.0001));
-    m.quaternion.copy(camera.quaternion);                         // always facing you
-    m.material.opacity = focused >= 0 && i !== focused ? 1 - 0.7 * k : 1;
+    const op = focused >= 0 && i !== focused ? 1 - 0.7 * k : 1;
+    for (const f of u.faces) f.material.opacity = op;
   });
   renderer.render(scene, camera);
 

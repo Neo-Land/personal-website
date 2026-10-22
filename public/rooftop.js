@@ -186,6 +186,9 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('swordsman.glb', (g) => 
   g.scene.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
   g.scene.position.copy(SWORD);
   scene.add(g.scene);
+  // soft warm fill from the camera side so his face reads against the sunset (the baked world ignores scene lights)
+  const fill = new THREE.DirectionalLight(0xffe2c8, 1.7); fill.position.copy(SWORD).add(new THREE.Vector3(0.6, 1.4, 3)); fill.target = g.scene;
+  scene.add(fill);
   swordMixer = new THREE.AnimationMixer(g.scene);
   swordMixer.clipAction(g.animations[0]).play();
   faceCamera = () => { g.scene.rotation.y = Math.atan2(pose.home.p.x - SWORD.x, pose.home.p.z - SWORD.z); };
@@ -217,8 +220,11 @@ const cards = buttons.map((b, i) => {
 // The cards stay put; the one you point at grows toward you.
 const ring = new THREE.Object3D(); ring.position.copy(NEO).add(new THREE.Vector3(0, 0.3, -0.15)); ring.rotation.order = 'YXZ'; scene.add(ring);
 const slot = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
-function arch(rx, ry) {                                                       // 0 … 180°: right to left over the top
-  slot.forEach((s, i) => { const a = Math.PI * i / (N - 1); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
+// a sweep rather than a full half ring: from his right at ledge height, over his head, ending high on his left side of
+// the frame (0 … 148°) so the last card clears swashbuckler Neo's head
+const SWEEP = Math.PI * 0.82;
+function arch(rx, ry) {
+  slot.forEach((s, i) => { const a = SWEEP * i / (N - 1); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
 }
 const HOVER = 1.35, LIFT = 0.12;                                              // hovered card: bigger, a little toward you
 
@@ -233,7 +239,7 @@ function size() {
     pose.home.p.set(2.3, 2.1, 1.2); pose.home.l.set(0.35, 1.25, -4.6); pose.home.fov = 62;
     pose.focus.p.set(1.9, 1.75, -1.0); pose.focus.l.set(0.95, 1.4, -4.6); pose.focus.fov = 55;
   } else {
-    arch(1.65, 1.3);
+    arch(1.75, 1.6);                                                          // tall enough that the low cards don't stack
     pose.home.p.set(2.35, 2.05, -0.55); pose.home.l.set(-0.5, 0.75, -10.5); pose.home.fov = 55;   // high, behind him: river + city below the sun
     pose.focus.p.set(2.3, 1.4, -2.0); pose.focus.l.set(1.35, 1.15, -4.7); pose.focus.fov = 40; // Neo ends up left of frame
   }

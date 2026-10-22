@@ -1,3 +1,0 @@
-Shelved 2026-10-22: snowy-ridge proof scene (Neo by a campfire, Cycles-baked terrain, fog, snow, scroll camera).
-build_ridge.py builds + bakes the scene (untested end to end: the test bake was stopped).
-page/ holds the unverified three.js page; move it back into public/ to try it (it needs public/ridge.glb).

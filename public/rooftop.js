@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from './vendor/meshopt/meshopt_decoder.js';
-import { drawBack, drawFront, BACKS } from './card-art.js';
+import { drawBack, drawFront } from './card-art.js';
 
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const buttons = [...document.querySelectorAll('#cards .card')], N = buttons.length;
@@ -170,7 +170,7 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('rooftop.glb', (g) => {
 // ── Neo ──
 const NEO = new THREE.Vector3(0.6, 0.5, -4.25), SIT_YAW = Math.PI * 0.74;   // on the ledge, looking out over the river
 let mixer, sit, idle, ready = false, neo, worldReady = false;
-new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo.glb', (g) => {
+new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo-1k.glb', (g) => {
   g.scene.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
   neo = g.scene; neo.position.copy(NEO); neo.rotation.y = SIT_YAW;
   scene.add(neo);
@@ -179,82 +179,45 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo.glb', (g) => {
   sit = clip('neo_sit'); idle = clip('neo_idle');
   sit.play(); ready = true; begin();
 });
-// swashbuckler Neo (the loft's swordsman outfit): sitting on the roof-side edge of the ledge, legs over the roof,
-// turned to face the camera. His slouch was keyfamed for a chair with a 0.25 m seat, so he sits 0.25 below the coping.
-const SWORD = new THREE.Vector3(2.05, 0.5 - 0.25, -3.85);
-let swordMixer;
-new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('swordsman.glb', (g) => {
-  g.scene.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
-  g.scene.position.copy(SWORD);
-  scene.add(g.scene);
-  // soft warm fill from the camera side so his face reads against the sunset (the baked world ignores scene lights)
-  const fill = new THREE.DirectionalLight(0xffe2c8, 1.7); fill.position.copy(SWORD).add(new THREE.Vector3(0.6, 1.4, 3)); fill.target = g.scene;
-  scene.add(fill);
-  swordMixer = new THREE.AnimationMixer(g.scene);
-  swordMixer.clipAction(g.animations[0]).play();
-  faceCamera = () => { g.scene.rotation.y = Math.atan2(pose.home.p.x - SWORD.x, pose.home.p.z - SWORD.z); };
-  faceCamera();
-});
-let faceCamera = () => {};
 function stand(up) {                                              // placeholder for phase 3's stand-up clip
   if (!ready) return;
   const [from, to] = up ? [sit, idle] : [idle, sit];
   to.reset().play(); from.crossFadeTo(to, 0.9, false);
 }
 
-// ── cards: playing cards fanned along the curve, back up; hovering flips one to its hand-drawn topic sketch ──
-const CW = 400, CH = 560, CARD = 0.4;                                 // poker-card proportions (5:7)
-const faceTex = (draw) => { const c = document.createElement('canvas'); c.width = CW; c.height = CH; draw(c.getContext('2d'));
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
-const backTex = Array.from({ length: BACKS }, (_, v) => faceTex((x) => drawBack(x, CW, CH, v)));   // five back designs, alternated
+// ── cards: five playing cards fanned along the curve, face up (real screenshots); they arrive back-up and turn over ──
+const CW = 400, CH = 560, CARD = 0.5;                                 // poker-card proportions (5:7)
+const faceTex = (draw) => { const c = document.createElement('canvas'); c.width = CW; c.height = CH; const x = c.getContext('2d'); draw(x);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.redraw = () => { draw(x); t.needsUpdate = true; }; return t; };
+const backTex = faceTex((x) => drawBack(x, CW, CH));                  // one back design, shared
 const cardGeo = new THREE.PlaneGeometry(CARD, CARD * CH / CW);
 const cards = buttons.map((b, i) => {
   const card = new THREE.Group(), flip = new THREE.Group(); card.add(flip);
-  const back = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: backTex[i % BACKS], transparent: true, fog: false }));
-  const front = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: faceTex((x) => drawFront(x, CW, CH, { d: b.dataset.d, name: b.textContent, cat: b.dataset.cat }, i)), transparent: true, fog: false }));
-  front.rotation.y = Math.PI;                                          // on the other side, shown once the card turns over
-  back.userData.i = front.userData.i = i;
-  flip.add(back, front);
-  card.userData = { i, s: 1, f: 0, flip, faces: [back, front] };
+  const info = { name: b.textContent, cat: b.dataset.cat, line: b.dataset.line, fit: b.dataset.fit, bg: b.dataset.bg, resume: b.dataset.d === 'resume', img: null };
+  const tex = faceTex((x) => drawFront(x, CW, CH, info, i));
+  const im = new Image(); im.onload = () => { info.img = im; tex.redraw(); }; im.src = b.dataset.img;   // the screenshot, drawn in once it's here
+  const front = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, fog: false }));
+  const back = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: backTex, transparent: true, fog: false }));
+  back.rotation.y = Math.PI;                                           // on the other side: what you see while it arrives
+  flip.add(front, back);
+  card.userData = { i, s: 1, flip, faces: [front, back] };
   scene.add(card);
   return card;
 });
 // Hover targets: one invisible plane per card, fixed at its resting place and a little larger, so hovering doesn't
-// flicker when the card itself lifts toward you or turns edge-on mid-flip (the pointer used to slip off and back)
+// flicker when the card itself lifts toward you (the pointer used to slip off and back)
 const hitMat = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
 const hits = cards.map((c, i) => { const h = new THREE.Mesh(cardGeo, hitMat); h.userData.i = i; h.scale.setScalar(1.15); scene.add(h); return h; });
-// Inner ring: each card's title just inside the fan, following the same curve, on a faint dotted arc
-const LW = 512, LH = 96, LABEL = 0.62;
-const labels = buttons.map((b, i) => {
-  const c = document.createElement('canvas'); c.width = LW; c.height = LH;
-  const x = c.getContext('2d');
-  x.font = '800 42px ui-monospace, Menlo, monospace'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.letterSpacing = '3px';
-  const t = b.textContent.toUpperCase(), w = Math.min(x.measureText(t).width + 56, LW - 4);
-  x.fillStyle = 'rgba(22,18,34,.62)'; x.beginPath(); x.roundRect((LW - w) / 2, 8, w, LH - 16, (LH - 16) / 2); x.fill();   // a soft pill so it reads on the bright sky
-  x.fillStyle = '#fff4e0'; x.fillText(t, LW / 2, LH / 2 + 2);
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(LABEL, LABEL * LH / LW), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
-  m.userData.i = i; scene.add(m); return m;
-});
-const arcGeo = new THREE.BufferGeometry(), arcLine = new THREE.Line(arcGeo, new THREE.LineDashedMaterial({ color: 0xfff1d8, dashSize: 0.03, gapSize: 0.05, transparent: true, opacity: 0.45, fog: false }));
-const faces = [...hits, ...labels];                                  // what the pointer is tested against
+const faces = hits;                                                   // what the pointer is tested against
 // the half ring: an upright arch behind him, facing the camera, from his right side over his head to his left.
 // The cards stay put; the one you point at grows toward you.
 const ring = new THREE.Object3D(); ring.position.copy(NEO).add(new THREE.Vector3(0, 0.3, -0.15)); ring.rotation.order = 'YXZ'; scene.add(ring);
 const slot = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
-const inner = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
-ring.add(arcLine);
-const INNER = 0.79;                                                   // the title ring, as a fraction of the card ring
-// a sweep rather than a full half ring: from his right at ledge height, over his head, ending high on his left side of
-// the frame (0 … 148°) so the last card clears swashbuckler Neo's head
-const SWEEP = Math.PI * 0.82;
+const SWEEP = Math.PI, FAN = 0.33;                                    // FAN: how far each card leans with the curve (1 = fully radial)                                                // a half ring: from his right side, over his head, to his left
 function arch(rx, ry) {
   slot.forEach((s, i) => { const a = SWEEP * i / (N - 1); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
-  inner.forEach((s, i) => { const a = SWEEP * i / (N - 1); s.position.set(-Math.cos(a) * rx * INNER, Math.sin(a) * ry * INNER, 0); });
-  const pts = []; for (let j = 0; j <= 64; j++) { const a = -0.06 + (SWEEP + 0.12) * j / 64; pts.push(new THREE.Vector3(-Math.cos(a) * rx * INNER, Math.sin(a) * ry * INNER - 0.075, 0)); }
-  arcGeo.setFromPoints(pts); arcLine.computeLineDistances();          // the dotted track just under the titles
 }
-const HOVER = 1.25, LIFT = 0.12;                                              // hovered card: bigger, a little toward you
+const HOVER = 1.15, LIFT = 0.1;                                              // hovered card: bigger, a little toward you
 const ringQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1);
 
 // ── camera poses: home (Neo centred, ring around him) and focus (Neo left, card up front, info on the right) ──
@@ -268,14 +231,13 @@ function size() {
     pose.home.p.set(2.3, 2.1, 1.2); pose.home.l.set(0.35, 1.25, -4.6); pose.home.fov = 62;
     pose.focus.p.set(1.9, 1.75, -1.0); pose.focus.l.set(0.95, 1.4, -4.6); pose.focus.fov = 55;
   } else {
-    arch(1.75, 1.6);                                                          // tall enough that the low cards don't stack
-    pose.home.p.set(2.35, 2.05, -0.55); pose.home.l.set(-0.5, 0.75, -10.5); pose.home.fov = 55;   // high, behind him: river + city below the sun
+    arch(1.6, 1.35);
+    pose.home.p.set(2.3, 1.95, -1.3); pose.home.l.set(-0.5, 0.75, -10.5); pose.home.fov = 55;   // high, behind him: river + city below the sun
     pose.focus.p.set(2.3, 1.4, -2.0); pose.focus.l.set(1.35, 1.15, -4.7); pose.focus.fov = 40; // Neo ends up left of frame
   }
   // the reveal starts higher, further back and looking up toward the sun over the skyline, then cranes down to him
   pose.start.p.copy(pose.home.p).add(phone ? new THREE.Vector3(2.5, 3.5, 6) : new THREE.Vector3(4, 3.2, 7));
   pose.start.l.copy(SUN).multiplyScalar(700).add(new THREE.Vector3(0, 30, 0)); pose.start.fov = phone ? 66 : 48;
-  faceCamera();
   ring.rotation.set(-0.12, Math.atan2(pose.home.p.x - NEO.x, pose.home.p.z - NEO.z), 0);   // faces the camera, top leaning back a touch
 }
 // where the focused card floats: in front of the focus camera, a bit right of centre (above centre on phones)
@@ -340,13 +302,7 @@ buttons.forEach((b, i) => {
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
 const pick = (e) => { if (revealT < POP_AT) return -1; ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ptr, camera); return ray.intersectObjects(faces)[0]?.object.userData.i ?? -1; };
 renderer.domElement.addEventListener('pointermove', (e) => { if (e.pointerType !== 'mouse') return; hovered = pick(e); renderer.domElement.style.cursor = hovered >= 0 ? 'pointer' : ''; });
-// touch has no hover: the first tap turns a card over, a second tap on it acts
-let tapFlip = false;
-renderer.domElement.addEventListener('pointerdown', (e) => {
-  if (e.pointerType === 'mouse') return;
-  const i = pick(e); tapFlip = i >= 0 && i !== hovered && focused < 0; if (tapFlip) hovered = i;
-});
-renderer.domElement.addEventListener('click', (e) => { if (tapFlip) { tapFlip = false; return; } const i = pick(e); if (i >= 0) act(i); else close(); });
+renderer.domElement.addEventListener('click', (e) => { const i = pick(e); if (i >= 0) act(i); else close(); });
 
 // ── perf readout (?perf) ──
 const perfEl = document.getElementById('perf'), PERF = new URLSearchParams(location.search).has('perf');
@@ -356,7 +312,7 @@ let frames = 0, acc = 0;
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
-  mixer?.update(dt); swordMixer?.update(dt);
+  mixer?.update(dt);
   if (dir) { t01 = Math.min(Math.max(t01 + dir * dt / (still ? 0.01 : 1.2), 0), 1); if (t01 === 0 || t01 === 1) { if (t01 === 0) focused = -1; dir = 0; } }
   const k = ease(t01);
   if (revealing) revealT += dt;
@@ -385,21 +341,18 @@ renderer.setAnimationLoop(() => {
   }
 
   const on = focused < 0 ? (hovered >= 0 ? hovered : kbd) : -1;
-  arcLine.material.opacity = 0.45 * (1 - k) * clamp01((revealT - POP_AT) / 0.8);
   ring.getWorldQuaternion(ringQ);
   cards.forEach((m, i) => {
     const u = m.userData, a = SWEEP * i / (N - 1);
     slot[i].updateMatrixWorld(); slot[i].getWorldPosition(m.position);
-    m.quaternion.copy(ringQ).multiply(rollQ.setFromAxisAngle(Z, Math.PI / 2 - a));   // fanned: each card's top points out along the curve
+    m.quaternion.copy(ringQ).multiply(rollQ.setFromAxisAngle(Z, (Math.PI / 2 - a) * FAN));   // fanned along the curve, gently so faces stay readable
     hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion);
-    const L = labels[i]; inner[i].updateMatrixWorld(); inner[i].getWorldPosition(L.position); L.quaternion.copy(m.quaternion);   // title follows the curve too
-    const lit = i === on || i === focused;
-    u.f += ((lit ? 1 : 0) - u.f) * Math.min(1, still ? 1 : dt * 7);   // 0 = back up, 1 = turned over
-    u.flip.rotation.y = Math.PI * u.f;
+    const turn = easeIO(clamp01((revealT - POP_AT - i * POP_GAP - 0.3) / 0.6));   // arrives back-up, then turns face-up
+    u.flip.rotation.y = Math.PI * (1 - turn);
     if (i === focused) {                                          // fly from its place on the curve to the spot up front, upright
       m.position.lerpVectors(dir === -1 ? m.position : flyFrom, focusSpot(), k);
       m.quaternion.slerp(camera.quaternion, k);
-      u.s = 1 + k * (phone ? 0.9 : 0.8);
+      u.s = 1 + k * (phone ? 0.55 : 0.4);
     } else {
       u.s += ((i === on ? HOVER : 1) - u.s) * Math.min(1, still ? 1 : dt * 10);
       m.position.addScaledVector(tmp.subVectors(camera.position, m.position).normalize(), LIFT * (u.s - 1) / (HOVER - 1));
@@ -408,8 +361,6 @@ renderer.setAnimationLoop(() => {
     m.scale.setScalar(u.s * Math.max(pop, 0.0001));
     const op = focused >= 0 && i !== focused ? 1 - 0.7 * k : 1;
     for (const f of u.faces) f.material.opacity = op;
-    L.material.opacity = (i === on ? 1 : 0.72) * (1 - k) * Math.min(pop, 1);   // titles brighten with their card, leave in focus
-    L.scale.setScalar(1 + (u.s - 1) * 0.5);
   });
   renderer.render(scene, camera);
 

@@ -192,10 +192,10 @@ const cards = buttons.map((b, i) => {
 // the half ring: an upright arch behind him, facing the camera, from his right side over his head to his left.
 // The cards stay put; the one you point at grows toward you.
 const ring = new THREE.Object3D(); ring.position.copy(NEO).add(new THREE.Vector3(0, 0.3, -0.15)); ring.rotation.order = 'YXZ'; scene.add(ring);
-const RX = 1.65, RY = 1.3, slot = cards.map((_, i) => {
-  const a = Math.PI * i / (N - 1), s = new THREE.Object3D();                // 0 … 180°: right to left over the top
-  s.position.set(-Math.cos(a) * RX, Math.sin(a) * RY, 0); ring.add(s); return s;
-});
+const slot = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
+function arch(rx, ry) {                                                       // 0 … 180°: right to left over the top
+  slot.forEach((s, i) => { const a = Math.PI * i / (N - 1); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
+}
 const HOVER = 1.35, LIFT = 0.12;                                              // hovered card: bigger, a little toward you
 
 // ── camera poses: home (Neo centred, ring around him) and focus (Neo left, card up front, info on the right) ──
@@ -205,9 +205,11 @@ function size() {
   renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight; phone = camera.aspect < 0.8;
   if (phone) {
-    pose.home.p.set(2.0, 2.6, 0.2); pose.home.l.set(-0.2, 0.2, -10); pose.home.fov = 68;
-    pose.focus.p.set(1.6, 1.6, -1.3); pose.focus.l.set(0.9, 1.45, -4.4); pose.focus.fov = 55;
+    arch(1.05, 1.45);                                                         // portrait: a taller, narrower arch
+    pose.home.p.set(2.3, 2.1, 1.2); pose.home.l.set(0.35, 1.25, -4.6); pose.home.fov = 62;
+    pose.focus.p.set(1.9, 1.75, -1.0); pose.focus.l.set(0.95, 1.4, -4.6); pose.focus.fov = 55;
   } else {
+    arch(1.65, 1.3);
     pose.home.p.set(2.3, 1.95, -1.3); pose.home.l.set(-0.5, 0.75, -10.5); pose.home.fov = 55;   // high, behind him: river + city below the sun
     pose.focus.p.set(2.3, 1.4, -2.0); pose.focus.l.set(1.35, 1.15, -4.7); pose.focus.fov = 40; // Neo ends up left of frame
   }

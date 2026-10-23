@@ -177,7 +177,7 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('rooftop.glb', (g) => {
 const NEO = new THREE.Vector3(0.6, 0.5, -4.25);                    // on the ledge
 let SIT_YAW = 0;                                                    // facing the camera; set in size() for each screen shape
 let mixer, sit, idle, ready = false, neo, worldReady = false;
-new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo-1k.glb', (g) => {
+new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo-slim.glb', (g) => {
   g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.material.envMap = studio; o.material.envMapIntensity = 0.35; } });   // a faint studio reflection: leather and denim stop looking flat
   neo = g.scene; neo.position.copy(NEO);
   scene.add(neo);

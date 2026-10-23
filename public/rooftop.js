@@ -220,9 +220,12 @@ const faces = hits;                                                   // what th
 // The cards stay put; the one you point at grows toward you.
 const ring = new THREE.Object3D(); ring.position.copy(NEO).add(new THREE.Vector3(0, 0.3, -0.15)); ring.rotation.order = 'YXZ'; scene.add(ring);
 const slot = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
-const SWEEP = Math.PI, FAN = 0.33;                                    // FAN: how far each card leans with the curve (1 = fully radial)                                                // a half ring: from his right side, over his head, to his left
+// the fan: an arc of SWEEP centred over his head (from his right side to his left); FAN: how far each card leans with
+// the curve (1 = fully radial)
+const SWEEP = Math.PI * 0.78, A0 = (Math.PI - SWEEP) / 2, FAN = 0.33;
+const angle = (i) => A0 + SWEEP * i / (N - 1);
 function arch(rx, ry) {
-  slot.forEach((s, i) => { const a = SWEEP * i / (N - 1); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
+  slot.forEach((s, i) => { const a = angle(i); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
 }
 const HOVER = 1.15, LIFT = 0.1;                                              // hovered card: bigger, a little toward you
 const ringQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1);
@@ -234,11 +237,11 @@ function size() {
   renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight; phone = camera.aspect < 0.8;
   if (phone) {
-    arch(1.05, 1.45);                                                         // portrait: a taller, narrower arch
+    arch(0.95, 1.25);                                                         // portrait: a taller, narrower arch
     pose.home.p.set(2.3, 2.1, 1.2); pose.home.l.set(0.35, 1.25, -4.6); pose.home.fov = 62;
     pose.focus.p.set(1.9, 1.75, -1.0); pose.focus.l.set(0.95, 1.4, -4.6); pose.focus.fov = 55;
   } else {
-    arch(1.6, 1.35);
+    arch(1.25, 1.1);
     pose.home.p.set(2.3, 1.95, -1.3); pose.home.l.set(-0.5, 0.75, -10.5); pose.home.fov = 55;   // high, behind him: river + city below the sun
     pose.focus.p.set(2.3, 1.4, -2.0); pose.focus.l.set(1.35, 1.15, -4.7); pose.focus.fov = 40; // Neo ends up left of frame
   }
@@ -353,7 +356,7 @@ renderer.setAnimationLoop(() => {
   const on = focused < 0 ? (hovered >= 0 ? hovered : kbd) : -1;
   ring.getWorldQuaternion(ringQ);
   cards.forEach((m, i) => {
-    const u = m.userData, a = SWEEP * i / (N - 1);
+    const u = m.userData, a = angle(i);
     slot[i].updateMatrixWorld(); slot[i].getWorldPosition(m.position);
     m.quaternion.copy(ringQ).multiply(rollQ.setFromAxisAngle(Z, (Math.PI / 2 - a) * FAN));   // fanned along the curve, gently so faces stay readable
     hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion);

@@ -261,11 +261,11 @@ const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const roomEl = document.getElementById('room'), cardEl = document.getElementById('card');
 // Earth textures for the globe (NASA Blue Marble + topology bump, WebP): fetched early, like the loft models
 let earthTex;
-let pageTex;
+let pageTex;                                   // fetched early (from the intro); applied to the page once the loft exists
 const loadPage = () => pageTex ??= new THREE.TextureLoader().loadAsync('resume-page.webp').then((t) => {
   t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  walls.page.material.map = t; walls.page.material.needsUpdate = true;
-}).catch(() => {});
+  return t;
+}).catch(() => null);
 const loadEarth = () => earthTex ??= Promise.all(['vendor/earth-blue-marble.webp', 'vendor/earth-topology.webp']
   .map((u) => new THREE.TextureLoader().loadAsync(u)));
 // The loft (after the reference photo): exposed brick, dark glossy hardwood, tall steel windows on the right with
@@ -517,6 +517,7 @@ function buildLoft() {
   camp.light = new THREE.PointLight(0xff8a3d, 1.4, 2.6, 2); camp.light.position.y = 0.3; camp.add(camp.light);
   const page = walls.page = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62 * 1811 / 1400), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false, side: THREE.DoubleSide, transparent: true, opacity: PAGE_DIM }));
   camp.add(page);
+  loadPage().then((t) => { if (t) { page.material.map = t; page.material.needsUpdate = true; } });
   loft.add(right);
 
   // Lighting: moody and warm

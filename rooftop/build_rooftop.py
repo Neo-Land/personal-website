@@ -4,7 +4,7 @@
 #   SAMPLES=16 SAMPLES_HI=32 for a quick test bake (defaults 128 / 256 for the ledge).
 # Baked groups (each one texture, shown unlit in three.js): deck, ledge (its own hi-res, high-sample bake), façade,
 # props. The skyline is exported as plain geometry with UVs in metres: its lit windows are drawn live by a
-# shader in rooftop.js, so it costs no texture download. Neo isn't baked; a blob stands in for his contact shadow.
+# shader in rooftop.js, so it costs no texture download. Neo isn't baked, and nothing stands in for him.
 # Coordinates are written in three.js terms (x right, y up, z toward the camera) and converted with B().
 import bpy, bmesh, math, os, random
 from mathutils import Vector
@@ -144,9 +144,7 @@ me = bpy.data.meshes.new('skyline'); bm.to_mesh(me); bm.free()
 skyline = bpy.data.objects.new('skyline', me); sc.collection.objects.link(skyline)
 skyline.data.materials.append(mat('skyline_mat', (0.1, 0.1, 0.12)))
 
-# stand-in for sitting Neo (shadow + occlusion only, never exported)
-bpy.ops.mesh.primitive_uv_sphere_add(radius=0.5, location=B(NEO[0], NEO[1] + 0.2, NEO[2]))
-proxy = bpy.context.active_object; proxy.scale = (0.48, 0.42, 0.42); proxy.data.materials.append(DARK)
+# (no stand-in for Neo: a baked contact shadow stayed on the ledge when he stood up, so the bake leaves his spot clean)
 
 # ── light: dusk sky gradient (same stops as the sky shader), a low warm sun behind, string-light spill ──
 world = bpy.data.worlds.new('dusk'); sc.world = world; world.use_nodes = True; nt = world.node_tree

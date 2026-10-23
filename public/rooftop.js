@@ -174,11 +174,12 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('rooftop.glb', (g) => {
 });
 
 // ── Neo ──
-const NEO = new THREE.Vector3(0.6, 0.5, -4.25), SIT_YAW = Math.PI * 0.6;    // on the ledge: three-quarter profile, looking out over the river
+const NEO = new THREE.Vector3(0.6, 0.5, -4.25);                    // on the ledge
+let SIT_YAW = 0;                                                    // facing the camera; set in size() for each screen shape
 let mixer, sit, idle, ready = false, neo, worldReady = false;
 new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo-1k.glb', (g) => {
   g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.material.envMap = studio; o.material.envMapIntensity = 0.35; } });   // a faint studio reflection: leather and denim stop looking flat
-  neo = g.scene; neo.position.copy(NEO); neo.rotation.y = SIT_YAW;
+  neo = g.scene; neo.position.copy(NEO);
   scene.add(neo);
   mixer = new THREE.AnimationMixer(g.scene);
   const clip = (n) => mixer.clipAction(g.animations.find((a) => a.name === n));
@@ -244,6 +245,7 @@ function size() {
   // the reveal starts higher, further back and looking up toward the sun over the skyline, then cranes down to him
   pose.start.p.copy(pose.home.p).add(phone ? new THREE.Vector3(2.5, 3.5, 6) : new THREE.Vector3(4, 3.2, 7));
   pose.start.l.copy(SUN).multiplyScalar(700).add(new THREE.Vector3(0, 30, 0)); pose.start.fov = phone ? 66 : 48;
+  SIT_YAW = Math.atan2(pose.home.p.x - NEO.x, pose.home.p.z - NEO.z);   // sitting, he faces you
   ring.rotation.set(-0.12, Math.atan2(pose.home.p.x - NEO.x, pose.home.p.z - NEO.z), 0);   // faces the camera, top leaning back a touch
 }
 // where the focused card floats: in front of the focus camera, a bit right of centre (above centre on phones)

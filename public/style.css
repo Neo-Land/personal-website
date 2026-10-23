@@ -68,6 +68,7 @@
   #nav { position: fixed; top: max(22px, env(safe-area-inset-top)); right: max(18px, env(safe-area-inset-right)); z-index: 4;
     display: flex; gap: 4px; transition: opacity .6s; }
   #nav.hide { opacity: 0; pointer-events: none; }
+  body:has(#back:not([hidden])) #nav .home { display: none; }   /* inside a loft corner, Back takes you out first */
   .ui { font: 500 13px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase;
     color: rgba(236, 240, 248, .82); background: none; border: 0; padding: 10px 10px; cursor: pointer; border-radius: 6px; text-decoration: none; }
   .ui:hover, .ui:focus-visible { color: #fff; background: rgba(255, 255, 255, .08); outline: none; }

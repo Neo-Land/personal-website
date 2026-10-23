@@ -1,0 +1,59 @@
+/* Rooftop previs. The canvas fills the screen; the intro sits bottom-left; a clicked card's info slides in as a
+   side panel (a bottom sheet on phones) so the scene stays visible behind it. */
+:root { --ink: #eef2f8; --muted: rgba(238, 242, 248, .66); --gold: #f0c36a; --cyan: #8fc2ff;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; --mono: ui-monospace, Menlo, monospace; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #05070d; }
+body { color: var(--ink); font: 400 16px/1.55 system-ui, -apple-system, sans-serif; }
+a { color: inherit; }
+img { display: block; max-width: 100%; height: auto; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+.bar { position: fixed; inset: 0 0 auto; z-index: 3; display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; }
+.logo { display: flex; align-items: center; gap: 8px; font: 600 16px/1 var(--serif); text-decoration: none; }
+.tag { font: 700 10px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--muted);
+  padding: 7px 10px; border: 1px dashed rgba(238, 242, 248, .3); border-radius: 6px; }
+
+.intro { position: fixed; z-index: 2; left: max(24px, 3vw); bottom: max(28px, 4vh); max-width: 300px; transition: opacity .5s; }
+.focused .intro { opacity: 0; pointer-events: none; }
+.intro h1 { margin: 0 0 6px; font: 600 clamp(28px, 3.2vw, 40px)/1.05 var(--serif); letter-spacing: -.02em; }
+.intro p { margin: 0; color: var(--muted); font-size: 15px; }
+.kicker { margin: 0 0 8px !important; font: 700 11px/1 var(--mono) !important; letter-spacing: .16em; text-transform: uppercase; color: var(--gold) !important; }
+
+/* the buttons that mirror the 3D cards: keyboard / screen readers only */
+.cards { position: fixed; left: 0; top: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); margin: 0; padding: 0; }
+
+/* info panel for the focused card */
+.info { position: fixed; z-index: 3; top: 0; right: 0; bottom: 0; width: min(420px, 38vw); overflow: auto; padding: 72px 28px 28px;
+  background: linear-gradient(90deg, rgba(5, 7, 13, 0), rgba(5, 7, 13, .82) 18%); }
+.info[hidden] { display: block; visibility: hidden; opacity: 0; transform: translateX(30px); }
+.info { transition: opacity .5s .25s, transform .5s .25s, visibility 0s; }
+.info[hidden] { transition: opacity .25s, transform .25s, visibility 0s .25s; }
+.back { margin: 0 0 18px; padding: 8px 14px; border: 1px solid rgba(238, 242, 248, .35); border-radius: 999px; background: none;
+  color: var(--ink); font: 600 13px/1 system-ui, sans-serif; cursor: pointer; }
+#d-body img { display: none; }                       /* the card itself is the picture now */
+#d-body h2 { margin: 0 0 10px; font: 600 30px/1.1 var(--serif); }
+#d-body p { margin: 0 0 12px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 16px; padding: 0; list-style: none; }
+.chips li { padding: 3px 10px; border-radius: 999px; background: rgba(238, 242, 248, .1); font-size: 13px; }
+.links { display: flex; flex-wrap: wrap; gap: 18px; font-weight: 600; }
+
+.perf { position: fixed; z-index: 4; left: 10px; top: 54px; margin: 0; padding: 8px 10px; border-radius: 6px;
+  background: rgba(0, 0, 0, .7); color: #9fe6b0; font: 600 11px/1.5 var(--mono); }
+
+@media (max-width: 700px) {
+  .info { top: auto; left: 0; width: auto; max-height: 52svh; padding: 20px 20px 28px; border-radius: 18px 18px 0 0;
+    background: rgba(5, 7, 13, .9); }
+  .info[hidden] { transform: translateY(40px); }
+  .intro { left: 16px; right: 16px; bottom: 20px; max-width: none; }
+  .intro h1 { font-size: 26px; }
+  .tag { display: none; }
+  .logo { font-size: 15px; }
+}
+
+/* rooftop page: black until the scene is ready, then the reveal; the intro text arrives after it */
+#fade { position: fixed; inset: 0; z-index: 2; background: #000; pointer-events: none; transition: opacity 1.4s ease; }
+#fade.out { opacity: 0; }
+.intro { transition: opacity 1s; }
+.arriving .intro { opacity: 0; }

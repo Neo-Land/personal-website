@@ -237,8 +237,8 @@ function size() {
   renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight; phone = camera.aspect < 0.8;
   if (phone) {
-    arch(0.95, 1.25);                                                         // portrait: a taller, narrower arch
-    pose.home.p.set(2.3, 2.1, 1.2); pose.home.l.set(0.35, 1.25, -4.6); pose.home.fov = 62;
+    arch(0.82, 1.2);                                                          // portrait: a taller, narrower arch
+    pose.home.p.set(1.75, 1.75, 0.15); pose.home.l.set(0.6, 1.05, -4.4); pose.home.fov = 60;   // closer: the fan fills the width
     pose.focus.p.set(1.9, 1.75, -1.0); pose.focus.l.set(0.95, 1.4, -4.6); pose.focus.fov = 55;
   } else {
     arch(1.25, 1.1);
@@ -254,7 +254,7 @@ function size() {
 // where the focused card floats: in front of the focus camera, a bit right of centre (above centre on phones)
 const focusSpot = () => {
   const p = pose.focus.p, l = pose.focus.l, fwd = l.clone().sub(p).normalize(), right = new THREE.Vector3().crossVectors(fwd, camera.up).normalize();
-  return p.clone().addScaledVector(fwd, 1.8).addScaledVector(right, phone ? 0 : -0.1).addScaledVector(camera.up, phone ? 0.2 : 0.02);
+  return p.clone().addScaledVector(fwd, 1.8).addScaledVector(right, phone ? 0 : -0.1).addScaledVector(camera.up, phone ? 0.34 : 0.02);   // phones: high, clear of the info sheet
 };
 
 // ── state: hover, focus in/out (tweens run in the loop) ──
@@ -359,19 +359,19 @@ renderer.setAnimationLoop(() => {
     const u = m.userData, a = angle(i);
     slot[i].updateMatrixWorld(); slot[i].getWorldPosition(m.position);
     m.quaternion.copy(ringQ).multiply(rollQ.setFromAxisAngle(Z, (Math.PI / 2 - a) * FAN));   // fanned along the curve, gently so faces stay readable
-    hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion);
+    hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion); hits[i].scale.setScalar(phone ? 1.3 : 1.15);
     const turn = easeIO(clamp01((revealT - POP_AT - i * POP_GAP - 0.3) / 0.6));   // arrives back-up, then turns face-up
     u.flip.rotation.y = Math.PI * (1 - turn);
     if (i === focused) {                                          // fly from its place on the curve to the spot up front, upright
       m.position.lerpVectors(dir === -1 ? m.position : flyFrom, focusSpot(), k);
       m.quaternion.slerp(camera.quaternion, k);
-      u.s = 1 + k * (phone ? 0.55 : 0.4);
+      u.s = 1 + k * (phone ? 0.25 : 0.4);
     } else {
       u.s += ((i === on ? HOVER : 1) - u.s) * Math.min(1, still ? 1 : dt * 10);
       m.position.addScaledVector(tmp.subVectors(camera.position, m.position).normalize(), LIFT * (u.s - 1) / (HOVER - 1));
     }
     const pop = easeOutBack(clamp01((revealT - POP_AT - i * POP_GAP) / POP_LEN));   // cards arrive one by one after the reveal
-    m.scale.setScalar(u.s * Math.max(pop, 0.0001));
+    m.scale.setScalar(u.s * Math.max(pop, 0.0001) * (phone ? 1.15 : 1));   // a little bigger on phones (easier to read and tap)
     const op = focused >= 0 && i !== focused ? 1 - 0.7 * k : 1;
     for (const f of u.faces) f.material.opacity = op;
   });

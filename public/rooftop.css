@@ -48,6 +48,8 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   .info[hidden] { transform: translateY(40px); }
   .intro { left: 16px; right: 16px; bottom: 20px; max-width: none; }
   .intro h1 { font-size: 26px; }
+  .tag { display: none; }
+  .logo { font-size: 15px; }
 }
 
 /* rooftop page: black until the scene is ready, then the reveal; the intro text arrives after it */

@@ -5,6 +5,7 @@
 // stand-up clip comes in phase 3) and slides in the card's info. ?perf shows fps / draw calls / memory.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { MeshoptDecoder } from './vendor/meshopt/meshopt_decoder.js';
 import { drawBack, drawFront } from './card-art.js';
 
@@ -56,6 +57,11 @@ scene.add(new THREE.HemisphereLight(0xffc49a, 0x3a2a26, 0.95));
 const sun = new THREE.DirectionalLight(0xffb070, 2.6); sun.position.copy(SUN).multiplyScalar(50); scene.add(sun);   // rim from behind
 const bounce = new THREE.DirectionalLight(0x8a90b8, 0.4); bounce.position.set(4, 3, 3); scene.add(bounce);               // cool bounce from the roof side
 const warm = new THREE.PointLight(0xffc27a, 3, 7, 1.5); warm.position.set(0, 2.2, -1.6); scene.add(warm);   // string lights' spill
+// Neo's own light (the baked world ignores scene lights): a soft warm fill from the camera side so his face reads against
+// the sunset, stronger once he stands and faces you, plus a dim studio environment for reflections on his materials
+const faceFill = new THREE.DirectionalLight(0xffe0c4, 1.1); scene.add(faceFill, faceFill.target);
+const FILL = [1.1, 2.0];                                         // home, focus
+const studio = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
 
 // ── the world: near (baked in Blender), mid (live: the cliff, the river, ferries), far (skyline on its waterfront) ──
 // the Palisades: the cliff drops from under the building straight into the river, so the view over the ledge is open water
@@ -168,10 +174,10 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('rooftop.glb', (g) => {
 });
 
 // ── Neo ──
-const NEO = new THREE.Vector3(0.6, 0.5, -4.25), SIT_YAW = Math.PI * 0.74;   // on the ledge, looking out over the river
+const NEO = new THREE.Vector3(0.6, 0.5, -4.25), SIT_YAW = Math.PI * 0.6;    // on the ledge: three-quarter profile, looking out over the river
 let mixer, sit, idle, ready = false, neo, worldReady = false;
 new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo-1k.glb', (g) => {
-  g.scene.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+  g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.material.envMap = studio; o.material.envMapIntensity = 0.35; } });   // a faint studio reflection: leather and denim stop looking flat
   neo = g.scene; neo.position.copy(NEO); neo.rotation.y = SIT_YAW;
   scene.add(neo);
   mixer = new THREE.AnimationMixer(g.scene);
@@ -335,6 +341,8 @@ renderer.setAnimationLoop(() => {
   sky.position.copy(camera.position);
   sky.material.uniforms.uTime.value = river.material.uniforms.uTime.value = still ? 0 : t;
   if (!still) for (const f of ferries) { f.position.x += f.userData.v * dt; if (Math.abs(f.position.x) > 900) f.position.x = -Math.sign(f.position.x) * 900; }
+  faceFill.position.copy(NEO).add(tmp.subVectors(camera.position, NEO).setY(0).normalize().multiplyScalar(2.5)).setY(NEO.y + 1.8);
+  faceFill.target.position.set(NEO.x, NEO.y + 0.5, NEO.z); faceFill.intensity = FILL[0] + (FILL[1] - FILL[0]) * k;
   if (neo) {                                                      // standing: he turns from the city to face you
     const face = Math.atan2(pose.focus.p.x - NEO.x, pose.focus.p.z - NEO.z);
     neo.rotation.y = SIT_YAW + Math.atan2(Math.sin(face - SIT_YAW), Math.cos(face - SIT_YAW)) * k;

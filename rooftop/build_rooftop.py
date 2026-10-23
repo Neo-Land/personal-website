@@ -1,9 +1,9 @@
 # Builds the Palisades rooftop at dusk, bakes its lighting in Cycles and exports rooftop/rooftop_raw.glb.
 # Run from the repo root (--factory-startup keeps user add-ons like BlenderKit / MCP out of it; they hung a bake):
 #   /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P rooftop/build_rooftop.py
-#   SAMPLES=16 for a quick test bake (default 128).
-# Baked groups (each one texture, shown unlit in three.js): deck, ledge (+ façade), props, below (rooftops under
-# the edge). The skyline is exported as plain geometry with UVs in metres: its lit windows are drawn live by a
+#   SAMPLES=16 SAMPLES_HI=32 for a quick test bake (defaults 128 / 256 for the ledge).
+# Baked groups (each one texture, shown unlit in three.js): deck, ledge (its own hi-res, high-sample bake), façade,
+# props. The skyline is exported as plain geometry with UVs in metres: its lit windows are drawn live by a
 # shader in rooftop.js, so it costs no texture download. Neo isn't baked; a blob stands in for his contact shadow.
 # Coordinates are written in three.js terms (x right, y up, z toward the camera) and converted with B().
 import bpy, bmesh, math, os, random
@@ -20,7 +20,7 @@ sc = bpy.context.scene
 def B(x, y, z): return Vector((x, -z, y))             # three.js → Blender (Z-up)
 
 # ── materials (procedural, only used for the bake) ──
-def mat(name, color, rough=0.85, noise=0.0, scale=6.0, brick=None):
+def mat(name, color, rough=0.85, noise=0.0, scale=6.0, brick=None, bump=0.0):
     m = bpy.data.materials.new(name); m.use_nodes = True
     nt = m.node_tree; bsdf = nt.nodes['Principled BSDF']; bsdf.inputs['Roughness'].default_value = rough
     if brick:                                          # brick walls: Blender's brick texture
@@ -36,10 +36,14 @@ def mat(name, color, rough=0.85, noise=0.0, scale=6.0, brick=None):
         nt.links.new(n.outputs['Fac'], r.inputs['Fac']); nt.links.new(r.outputs['Color'], bsdf.inputs['Base Color'])
     else:
         bsdf.inputs['Base Color'].default_value = (*color, 1)
+    if bump:                                           # fine grain + pits the bake turns into real light and shadow
+        g = nt.nodes.new('ShaderNodeTexNoise'); g.inputs['Scale'].default_value = 60; g.inputs['Detail'].default_value = 10
+        b = nt.nodes.new('ShaderNodeBump'); b.inputs['Strength'].default_value = bump; b.inputs['Distance'].default_value = 0.01
+        nt.links.new(g.outputs['Fac'], b.inputs['Height']); nt.links.new(b.outputs['Normal'], bsdf.inputs['Normal'])
     return m
 
-TAR = mat('tar', (0.075, 0.07, 0.068), 0.9, noise=0.45, scale=3)
-STONE = mat('stone', (0.42, 0.39, 0.35), 0.8, noise=0.3, scale=9)
+TAR = mat('tar', (0.075, 0.07, 0.068), 0.9, noise=0.45, scale=3, bump=0.35)
+STONE = mat('stone', (0.42, 0.39, 0.35), 0.8, noise=0.3, scale=9, bump=0.3)
 BRICK = mat('brick', (0, 0, 0), 0.9, brick=((0.24, 0.1, 0.07), (0.17, 0.07, 0.05), (0.32, 0.3, 0.28)))
 BRICK2 = mat('brick2', (0, 0, 0), 0.9, brick=((0.2, 0.13, 0.1), (0.13, 0.09, 0.07), (0.28, 0.27, 0.26)))
 GLASS = mat('glass', (0.025, 0.03, 0.04), 0.3)
@@ -72,16 +76,17 @@ for i in range(14):                                                          # t
 deck = join(deck, 'deck')
 
 # ledge: coping slab with an overhang over a stone body, a cornice band and the brick façade below
-ledge = [box((12.2, 0.08, 1.02), (0, 0.5, -4.25), STONE), box((12, 0.44, 0.84), (0, 0.24, -4.25), STONE),
-         box((12.3, 0.22, 0.32), (0, -0.55, -4.78), STONE), box((12.3, 0.06, 0.4), (0, -0.42, -4.8), STONE),
-         box((12, 14, 0.3), (0, -7.6, -4.65), BRICK)]
+# the ledge Neo sits on gets its own texture (the camera lives here); the façade below gets a smaller one
+ledge = [box((12.2, 0.08, 1.02), (0, 0.5, -4.25), STONE), box((12, 0.44, 0.84), (0, 0.24, -4.25), STONE)]
+facade = [box((12.3, 0.22, 0.32), (0, -0.55, -4.78), STONE), box((12.3, 0.06, 0.4), (0, -0.42, -4.8), STONE),
+          box((12, 14, 0.3), (0, -7.6, -4.65), BRICK)]
 for i in range(12):                                                          # coping-stone joints
     ledge.append(box((0.012, 0.085, 1.03), (-6 + i, 0.5, -4.25), DARK))
 for fl in range(4):                                                          # windows on the façade
     for col in range(5):
         x, y = -4.8 + col * 2.4, -2.0 - fl * 3.2
-        ledge.append(box((1.1, 1.7, 0.08), (x, y, -4.82), GLASS)); ledge.append(box((1.3, 0.12, 0.2), (x, y - 0.92, -4.85), STONE))
-ledge = join(ledge, 'ledge')
+        facade.append(box((1.1, 1.7, 0.08), (x, y, -4.82), GLASS)); facade.append(box((1.3, 0.12, 0.2), (x, y - 0.92, -4.85), STONE))
+ledge = join(ledge, 'ledge'); facade = join(facade, 'facade')
 
 # props: water tower, HVAC units, vent pipes
 props = []
@@ -175,28 +180,30 @@ bk.use_pass_direct = bk.use_pass_indirect = bk.use_pass_diffuse = bk.use_pass_em
 bk.use_pass_glossy = bk.use_pass_transmission = False
 bk.margin = 8
 
-def bake(ob, res):
+def bake(ob, res, samples=SAMPLES):
     bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
     bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.smart_project(island_margin=0.004, scale_to_bounds=True); bpy.ops.object.mode_set(mode='OBJECT')
     img = bpy.data.images.new(f'{ob.name}_bake', res, res)
     for m in ob.data.materials:
         n = m.node_tree.nodes.new('ShaderNodeTexImage'); n.image = img; m.node_tree.nodes.active = n
-    print('baking', ob.name, flush=True)
+    sc.cycles.samples = samples
+    print('baking', ob.name, samples, 'samples', flush=True)
     bpy.ops.object.bake(type='COMBINED')
     img.filepath_raw = os.path.join(OUT, f'{ob.name}_bake.png'); img.file_format = 'PNG'; img.save()
     return img
 
 below.select_set(False); bpy.data.objects.remove(below)            # dropped 2026-10-22: the view over the ledge stays open
-baked = {ob.name: bake(ob, res) for ob, res in ((deck, 2048), (ledge, 2048), (props, 1024))}
+HI = int(os.environ.get('SAMPLES_HI', 256))                          # the ledge is right in front of the camera: clean it up
+baked = {ob.name: bake(ob, res, smp) for ob, res, smp in ((deck, 2048, SAMPLES), (ledge, 2048, HI), (facade, 1024, SAMPLES), (props, 1024, SAMPLES))}
 # export materials: just the baked image (three.js shows it unlit); skyline keeps its plain material
-for ob in (deck, ledge, props):
+for ob in (deck, ledge, facade, props):
     m = bpy.data.materials.new(f'{ob.name}_baked'); m.use_nodes = True
     t = m.node_tree.nodes.new('ShaderNodeTexImage'); t.image = baked[ob.name]
     m.node_tree.links.new(t.outputs['Color'], m.node_tree.nodes['Principled BSDF'].inputs['Base Color'])
     ob.data.materials.clear(); ob.data.materials.append(m)
 bpy.ops.object.select_all(action='DESELECT')
-for ob in (deck, ledge, props, skyline): ob.select_set(True)
+for ob in (deck, ledge, facade, props, skyline): ob.select_set(True)
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'rooftop_raw.glb'), use_selection=True, export_format='GLB',
                           export_lights=False, export_cameras=False)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, 'rooftop.blend'))

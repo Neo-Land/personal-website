@@ -23,21 +23,23 @@ def B(x, y, z): return Vector((x, -z, y))             # three.js → Blender (Z-
 def mat(name, color, rough=0.85, noise=0.0, scale=6.0, brick=None, bump=0.0):
     m = bpy.data.materials.new(name); m.use_nodes = True
     nt = m.node_tree; bsdf = nt.nodes['Principled BSDF']; bsdf.inputs['Roughness'].default_value = rough
+    co = nt.nodes.new('ShaderNodeTexCoord').outputs['Object']   # textures in metres: the default (Generated) squeezes
+                                                                # each object into a unit box, stretching the 12 m ledge
     if brick:                                          # brick walls: Blender's brick texture
-        t = nt.nodes.new('ShaderNodeTexBrick'); t.inputs['Color1'].default_value = (*brick[0], 1)
+        t = nt.nodes.new('ShaderNodeTexBrick'); nt.links.new(co, t.inputs['Vector']); t.inputs['Color1'].default_value = (*brick[0], 1)
         t.inputs['Color2'].default_value = (*brick[1], 1); t.inputs['Mortar'].default_value = (*brick[2], 1)
         t.inputs['Scale'].default_value = 1.0; t.inputs['Mortar Size'].default_value = 0.012
         t.offset = 0.5; t.inputs['Brick Width'].default_value = 0.22; t.inputs['Row Height'].default_value = 0.075
         nt.links.new(t.outputs['Color'], bsdf.inputs['Base Color'])
     elif noise:                                        # grime: colour wobbles with a noise texture
-        n = nt.nodes.new('ShaderNodeTexNoise'); n.inputs['Scale'].default_value = scale; n.inputs['Detail'].default_value = 6
+        n = nt.nodes.new('ShaderNodeTexNoise'); nt.links.new(co, n.inputs['Vector']); n.inputs['Scale'].default_value = scale / 4; n.inputs['Detail'].default_value = 6
         r = nt.nodes.new('ShaderNodeValToRGB'); r.color_ramp.elements[0].color = tuple(c * (1 - noise) for c in color) + (1,)
         r.color_ramp.elements[1].color = tuple(min(c * (1 + noise), 1) for c in color) + (1,)
         nt.links.new(n.outputs['Fac'], r.inputs['Fac']); nt.links.new(r.outputs['Color'], bsdf.inputs['Base Color'])
     else:
         bsdf.inputs['Base Color'].default_value = (*color, 1)
     if bump:                                           # fine grain + pits the bake turns into real light and shadow
-        g = nt.nodes.new('ShaderNodeTexNoise'); g.inputs['Scale'].default_value = 60; g.inputs['Detail'].default_value = 10
+        g = nt.nodes.new('ShaderNodeTexNoise'); nt.links.new(co, g.inputs['Vector']); g.inputs['Scale'].default_value = 18; g.inputs['Detail'].default_value = 10
         b = nt.nodes.new('ShaderNodeBump'); b.inputs['Strength'].default_value = bump; b.inputs['Distance'].default_value = 0.01
         nt.links.new(g.outputs['Fac'], b.inputs['Height']); nt.links.new(b.outputs['Normal'], bsdf.inputs['Normal'])
     return m

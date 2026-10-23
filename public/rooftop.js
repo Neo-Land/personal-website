@@ -232,19 +232,23 @@ const ringQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion(), Z = new TH
 
 // ── camera poses: home (Neo centred, ring around him) and focus (Neo left, card up front, info on the right) ──
 const pose = { start: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 50 }, home: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 55 }, focus: { p: new THREE.Vector3(), l: new THREE.Vector3(), fov: 40 } };
-let phone = false;
+let phone = false, cardScale = 1;
 function size() {
   renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight; phone = camera.aspect < 0.8;
-  if (phone) {
-    arch(0.82, 1.2);                                                          // portrait: a taller, narrower arch
-    pose.home.p.set(1.75, 1.75, 0.15); pose.home.l.set(0.6, 1.05, -4.4); pose.home.fov = 60;   // closer: the fan fills the width
+  if (phone) {                                                                // portrait: Neo and his fan left of centre, the city to the right
+    pose.home.p.set(2.0, 1.85, 0.3); pose.home.l.set(0.85, 1.0, -4.4); pose.home.fov = 60;
     pose.focus.p.set(1.9, 1.75, -1.0); pose.focus.l.set(0.95, 1.4, -4.6); pose.focus.fov = 55;
   } else {
-    arch(1.25, 1.1);
     pose.home.p.set(2.3, 1.95, -1.3); pose.home.l.set(-0.5, 0.75, -10.5); pose.home.fov = 55;   // high, behind him: river + city below the sun
     pose.focus.p.set(2.3, 1.4, -2.0); pose.focus.l.set(1.35, 1.15, -4.7); pose.focus.fov = 40; // Neo ends up left of frame
   }
+  // the fan scales with how much width the camera sees at Neo's distance: same semicircle everywhere, smaller on narrow
+  // screens (desktop is already at the cap)
+  const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(pose.home.fov / 2)) * camera.aspect);
+  const viewW = 2 * pose.home.p.distanceTo(NEO) * Math.tan(hfov / 2);
+  const rx = Math.min(1.25, viewW * 0.26); arch(rx, rx * 0.88);
+  cardScale = Math.min(1, (viewW * 0.125) / CARD);                     // narrower than the gaps, so cards never overlap
   // the reveal starts higher, further back and looking up toward the sun over the skyline, then cranes down to him
   pose.start.p.copy(pose.home.p).add(phone ? new THREE.Vector3(2.5, 3.5, 6) : new THREE.Vector3(4, 3.2, 7));
   pose.start.l.copy(SUN).multiplyScalar(700).add(new THREE.Vector3(0, 30, 0)); pose.start.fov = phone ? 66 : 48;
@@ -359,7 +363,7 @@ renderer.setAnimationLoop(() => {
     const u = m.userData, a = angle(i);
     slot[i].updateMatrixWorld(); slot[i].getWorldPosition(m.position);
     m.quaternion.copy(ringQ).multiply(rollQ.setFromAxisAngle(Z, (Math.PI / 2 - a) * FAN));   // fanned along the curve, gently so faces stay readable
-    hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion); hits[i].scale.setScalar(phone ? 1.3 : 1.15);
+    hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion); hits[i].scale.setScalar(1.15 * cardScale);
     const turn = easeIO(clamp01((revealT - POP_AT - i * POP_GAP - 0.3) / 0.6));   // arrives back-up, then turns face-up
     u.flip.rotation.y = Math.PI * (1 - turn);
     if (i === focused) {                                          // fly from its place on the curve to the spot up front, upright
@@ -371,7 +375,7 @@ renderer.setAnimationLoop(() => {
       m.position.addScaledVector(tmp.subVectors(camera.position, m.position).normalize(), LIFT * (u.s - 1) / (HOVER - 1));
     }
     const pop = easeOutBack(clamp01((revealT - POP_AT - i * POP_GAP) / POP_LEN));   // cards arrive one by one after the reveal
-    m.scale.setScalar(u.s * Math.max(pop, 0.0001) * (phone ? 1.15 : 1));   // a little bigger on phones (easier to read and tap)
+    m.scale.setScalar(u.s * Math.max(pop, 0.0001) * (i === focused ? 1 : cardScale));   // fan cards follow the screen size; the opened one doesn't
     const op = focused >= 0 && i !== focused ? 1 - 0.7 * k : 1;
     for (const f of u.faces) f.material.opacity = op;
   });

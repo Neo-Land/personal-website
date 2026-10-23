@@ -1,27 +1,67 @@
-# Nehemias — Personal Website
+# Nehemias Landaverde — Interactive 3D Portfolio
 
-An interactive 3D portfolio. A rigged character ("Neo") walks an oval in a black void, every footstep rippling the floor. Tap anywhere and he bends down to pick up his hackathon-winner coin; flick it up and it shoots off like a shooting star whose streak splits the screen open into light, revealing a moody loft of worn plaster and navy brick where he sits beneath a glowing, pinned globe of places.
+**Live: [nehemiaslandaverde.com](https://nehemiaslandaverde.com)** · works on desktop and phones
 
-Built with **three.js**, **Blender**, **Mixamo**, **Tripo** (AI image-to-3D) — a static site (`public/`) with every dependency self-hosted.
+![Neo picks up his hackathon coin, flicks it into a shooting star, and the screen opens into the loft](docs/preview.webp)
 
-| Opening | Loft |
+A portfolio you walk into instead of scroll through. My 3D avatar, Neo, paces a dark void; click anywhere and he
+picks up his hackathon coin. Flick it upward and it streaks off like a shooting star, splitting the screen open into
+a sunlit loft where each part of the portfolio is a place in the room: a globe of places I've been, a garage for
+projects, and a campfire where my résumé floats, ready to read or download.
+
+Built from scratch with **three.js** (no framework, no build step), with the character made in **Tripo**, rigged in
+**Mixamo** and animated in **Blender**. Hosted on **Cloudflare** as a static site with a strict security policy.
+
+| | |
 |---|---|
-| ![Opening](docs/1-opening.jpg) | ![Loft](docs/4-loft.jpg) |
+| ![Neo holding the coin](docs/coin.jpg) | ![The shooting-star streak](docs/flick.jpg) |
+| ![The loft overview](docs/loft.jpg) | ![The globe of places](docs/globe.jpg) |
+| ![The campfire résumé corner](docs/campfire.jpg) | ![The résumé opened to read](docs/resume.jpg) |
 
-## The experience
+## Highlights
 
-1. **Void** — black screen; Neo walks a long left↔right ellipse at a constant ground speed. Each foot plant drops a water-like ripple.
-2. **Greeting** — top left, typed on load: *This is Nehemias* in English, Italian, Spanish and Japanese.
-3. **One tap** — his hackathon-winner coin has been lying small at the centre of his walk all along; he walks over to it, turns to camera, bends down and picks it up (Mixamo "Lifting" + a palm-up hand turn keyed in Blender, `lift.glb`). The coin grows to full size as he lifts it and ends floating above his open palm, facing the camera.
-4. **Flick** — drag up on the coin: it turns with your finger; let go and it flips off the top of the screen, leaving a blue shooting-star streak as stars fade in; the streak then splits open into white, slicing the screen in half. In the loft the same coin falls in with its trail and lands on the floor in front of him.
-5. **Loft** — warm, moody loft: worn lime plaster chipped away to navy brick, a wooden ceiling, dark glossy hardwood, tall steel windows with a golden-hour skyline, real window shadows. Neo sits cross-legged under a floating globe with a pulsing blue aura; its pins poke out of the surface — tap one to zoom in and read its card.
-6. **Portfolio layer** — always-available *Work · About · Contact* panel, plus *Skip intro →* for visitors in a hurry.
+- **A custom, rigged character.** Neo started as reference art, became a mesh in Tripo (image-to-3D), was
+  auto-rigged in Mixamo, and got custom animation keyed by hand in Blender (the coin pickup and palm-up turn).
+  Outfit variants (mechanic, swordsman) reuse his skeleton and skin weights.
+- **Fast despite the 3D.** Models went from 11.5 MB to about 4.3 MB: smooth decimation (Neo 97k → 30k triangles),
+  WebP textures and meshopt compression via glTF-Transform. The loft downloads while you watch the intro, and the
+  screen holds on white until its shaders are compiled, so it fades in without a flash. The scene only renders at
+  full rate while something moves (30 fps when idle, nothing at all behind the portfolio panel).
+- **Textures drawn in code.** The brick, worn plaster, floorboards, skyline and comic-book signs are painted on
+  `<canvas>` at runtime: zero bytes to download, and the plaster wears away differently on every visit.
+- **Real interactions.** A flick gesture for the coin, raycast hotspots for each corner of the room, camera flights
+  between them, a drag-to-spin globe with clickable pins, and a résumé you can open in-scene or download.
+- **Locked down.** Static hosting only (no server, database or forms), every dependency self-hosted and
+  version-pinned, a strict Content-Security-Policy (no inline scripts; the import map is allowed by hash), HSTS,
+  DNSSEC, a domain that refuses to send email (SPF `-all`, DMARC reject), a firewall rule against secret-file
+  probes, and a `security.txt`.
+- **Accessible.** Touch, mouse and keyboard; honours `prefers-reduced-motion`; the portfolio panel is a native
+  `<dialog>`; the résumé is a real PDF as well as a 3D page.
 
-Works on phones (tap / swipe, narrower framing), respects `prefers-reduced-motion`, and the panel is a native `<dialog>` (focus trap, Esc to close).
+## How it was built
 
-## Run locally
+I designed the experience, made the 3D assets (Tripo, Mixamo, Blender), set up the hosting, and directed, reviewed
+and tested every change. The web code was written with **Claude Code**, an AI coding assistant, working from my
+direction. Every visual decision went through rounds of rendered screenshots on desktop and phone sizes before it
+shipped.
 
-Any static server works (the page fetches `neo.glb`, so `file://` won't):
+The full story, including the dead ends (a PS2-style low-poly look, a painted landscape through an archway, a
+hologram résumé) and the reasons they were cut, is in the build log: **[PROGRESS.md](PROGRESS.md)**.
+
+## Tech
+
+| | |
+|---|---|
+| **3D / rendering** | three.js 0.170 (self-hosted), WebGL, custom canvas textures, meshopt-compressed glTF |
+| **Character & assets** | Tripo (image-to-3D), Mixamo (rigging, base animations), Blender (keyframing, decimation, export) |
+| **Asset pipeline** | glTF-Transform CLI (resample, WebP, meshopt), sharp (images, icons, previews) |
+| **Code** | Vanilla JavaScript modules, HTML, CSS (about 1,250 lines of scene and interaction code) |
+| **Hosting** | Cloudflare Workers static assets, auto-deployed from `main`; custom domain with DNSSEC |
+| **Built with** | Claude Code |
+
+## Run it locally
+
+Any static server works (the page loads `.glb` models, so `file://` won't):
 
 ```bash
 python3 -m http.server 8000 --directory public
@@ -29,76 +69,39 @@ python3 -m http.server 8000 --directory public
 
 Then open <http://localhost:8000/>.
 
-## Edit your content
-
-Everything recruiters read lives in the `SITE` object near the top of the module script in [`public/app.js`](public/app.js): name, role, bio, skills, projects (`title`, `blurb`, `tags`, `live`, `code`, `image`), email, LinkedIn, GitHub and résumé. Empty links are hidden. Places on the globe are the `PLACES` list; the greeting is `GREETINGS`.
-
 ## Project structure
 
 | Path | What it is |
 |---|---|
-| `public/` | **The deployed site — only this folder is published** |
-| `public/index.html`, `style.css`, `app.js` | Markup, styles, and all scene/interaction code (three.js scenes, coin flip, loft, globe, portfolio panel) |
-| `public/neo.glb` | Neo — 48.7k-face textured mesh, 41-bone Mixamo rig, animations `neo_slow_walk`, `neo_idle`, `neo_sit` |
-| `public/vendor/` | Self-hosted, pinned three.js 0.170.0, meshopt decoder, earth textures (+ `LICENSES.txt`) |
-| `public/_headers` | Security headers (CSP, HSTS, no framing, permissions lockdown), applied by Cloudflare |
-| `wrangler.jsonc` | Cloudflare Workers config: serve `public/` as static assets (no server code) |
-| `neo_rawv2/` | Tripo export the character was built from (FBX + PBR textures) |
-| `neo_rigged.fbx` | Mixamo auto-rig of that mesh |
-| `neo_slow_walk.fbx`, `neo_idle.fbx`, `neo_sit.fbx` | Mixamo animations (downloaded **With Skin**) |
-| `neo_front.png`, `neo_side.png`, `neo_back.png`, `neofrontv2.jpeg` | Character reference images (`neofrontv2` = upscaled front used for generation) |
-| `archive/index-2d.html` | Earlier 2D version of the jeans/ticket/globe idea (kept for reference) |
-| `PROGRESS.md` | Detailed development log, decisions and gotchas |
-| `docs/` | Screenshots |
+| `public/` | **The deployed site: only this folder is published** |
+| `public/index.html`, `style.css`, `app.js` | Markup, styles, and all scene and interaction code |
+| `public/*.glb` | Neo, his outfit variants, the car, the coin and props (meshopt + WebP) |
+| `public/vendor/` | Self-hosted three.js, meshopt decoder, Earth textures, font (licences in `LICENSES.txt`) |
+| `public/_headers`, `_redirects` | Security headers and redirects, applied by Cloudflare |
+| `wrangler.jsonc` | Cloudflare config: serve `public/` as static assets (no server code) |
+| `PROGRESS.md` | The build log: decisions, dead ends and gotchas |
+| `docs/` | Screenshots for this README |
 
-## Asset pipeline
+## Lessons learned
 
-1. **Reference** — front/side/back turnaround of the character; front view upscaled to 848×1264.
-2. **Image → 3D** — Tripo H3.1, *Quad* topology, 50k polycount, 4K PBR, *Remove Lighting* on.
-3. **Rig** — mesh exported from Blender as a plain OBJ (no materials) → Mixamo auto-rigger (Standard skeleton).
-4. **Animate** — Mixamo clips downloaded **With Skin**, actions extracted in Blender and attached to the rig; forward drift removed from the hips so walks play in place.
-5. **Export** — Blender → `neo.glb` (mesh + textures + skin + 3 actions). Blender is driven from Claude Code through the official Blender MCP connector.
-
-### Lessons learned (the non-obvious bits)
-
-- **Mixamo "unable to map your existing skeleton"** on a mesh with no skeleton → caused by roughness/metallic textures. Upload the mesh only; reattach materials afterwards.
-- **Mixamo animations must be downloaded *With Skin*.** *Without Skin* files rest in a T-pose while the rig rests in the uploaded A-pose, so every arm rotation lands ~56° off (arms cross the body).
-- **Mixamo returned the rig at 1/100 scale** (OBJ metres read as centimetres) — rescale the armature in Blender.
-- **glTF bones load in an animation pose**, not the rest pose — so the coin starts from a real skinned-mesh vertex (the pocket), not to the hips bone.
-- **Footstep ripples** fire from the clip's measured foot-plant times; the slow walk barely lifts the feet, so height-based detection missed steps.
-- **Blender 5 actions are layered** (`action.layers → strips → channelbags → fcurves`); the glTF exporter freezes bones whose rotation mode was switched away from quaternion.
-
-## Security & privacy
-
-- **Static only** — no server code, database, logins or forms: nothing on the site to break into.
-- **No third-party requests** — three.js, the meshopt decoder and textures are self-hosted and version-pinned, so a hijacked CDN can't inject code.
-- **Strict Content-Security-Policy** (`public/_headers`): scripts only from this origin plus the hashed import map; no framing (`frame-ancestors 'none'`), no plugins, no form posts, no `<base>` tricks. Inline *styles* are allowed only because globe.gl injects CSS at runtime.
-- **HSTS, nosniff, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, locked-down `Permissions-Policy`, COOP/CORP same-origin.**
-- **No cookies, analytics or trackers.** Only `public/` is deployed — source assets, dev log and git history are never served.
-- If you edit the `<script type="importmap">` block, recompute its SHA-256 and update `script-src` in `_headers`, or the page won't run.
-
-## Large files (not in the repo)
-
-GitHub warns above 50 MB and Git LFS isn't set up, so these stay local:
-
-- `neo.blend` (75 MB) — the working Blender scene (rig, actions, retarget bakes). Rebuildable from the FBX files above following [`PROGRESS.md`](PROGRESS.md).
-- `neo_raw/` (61 MB) — first, 2M-face Tripo export (superseded by `neo_rawv2/`).
-
-To version them later: `brew install git-lfs && git lfs install && git lfs track "*.blend"`.
-
-## Roadmap
-
-- [ ] Fill in `SITE` (bio, projects, links, résumé) and `PLACES`
-- [ ] Deploy `public/` on Cloudflare (Workers static assets, Git-connected) at nehemiaslandaverde.com
-- [ ] Add `og:url` / `og:image` (1200×630 screenshot) for link previews
-- [ ] Optional: Draco-compress `neo.glb` for faster first load
+- **Mixamo can't rig a mesh that comes with roughness/metallic textures** ("unable to map your existing skeleton").
+  Upload the bare mesh and reattach materials afterwards.
+- **Download Mixamo animations *With Skin*.** Without it, clips rest in a T-pose while the rig rests in an A-pose,
+  so every arm rotation lands about 56° off.
+- **Footstep ripples** fire from the walk clip's measured foot-plant times; the slow walk barely lifts its feet, so
+  height-based detection missed steps.
+- **Blender 5 actions are layered** (`action.layers → strips → channelbags → fcurves`), and the glTF exporter freezes
+  bones whose rotation mode isn't quaternion.
+- **Quantised glTF stores scale in the node transform**, so never overwrite a loaded node's position or scale; wrap
+  it in a `THREE.Group` and move that.
+- **Prefetched textures must not assume the scene exists yet.** The résumé image once finished downloading during
+  the intro, before the loft was built, and silently failed to attach. It's now applied when the loft is created.
 
 ## Model compression
 
-Every `public/*.glb` is compressed with [glTF-Transform](https://gltf-transform.dev) (dev-time CLI only, never served):
-textures re-encoded as WebP, animations resampled, then meshopt geometry/animation compression. The site decodes them
-with the self-hosted `vendor/meshopt/meshopt_decoder.js` (`gltfLoader()` in `app.js`), which is why the CSP allows
-`'wasm-unsafe-eval'`. Re-run after re-exporting a model from Blender:
+Every `public/*.glb` is compressed with [glTF-Transform](https://gltf-transform.dev) (a dev-time CLI, never
+served). The site decodes them with the self-hosted meshopt decoder, which is why the CSP allows
+`'wasm-unsafe-eval'`. After re-exporting a model from Blender:
 
 ```bash
 npx @gltf-transform/cli@4 resample in.glb a.glb      # animated models only
@@ -106,6 +109,12 @@ npx @gltf-transform/cli@4 webp a.glb b.glb --quality 86
 npx @gltf-transform/cli@4 meshopt b.glb public/out.glb --level medium
 ```
 
-Gotcha: quantisation stores each mesh's dequantisation in its node transform, so don't overwrite a loaded node's
-position/scale — wrap it in a `THREE.Group` and move that (see the suit and hat in `buildNook`).
+## What's next
 
+- **Projects corner:** the garage becomes a walk-through of Hobitual and Gamify.Life.
+- **A new landing scene** (Neo on a rooftop) is in progress on a separate branch.
+
+## License
+
+© Nehemias Landaverde. The code is public so it can be read and reviewed; all rights reserved. Third-party files
+in `public/vendor/` keep their own licences (see `LICENSES.txt`).

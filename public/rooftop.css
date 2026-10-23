@@ -12,8 +12,6 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
 .bar { position: fixed; inset: 0 0 auto; z-index: 3; display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; }
 .logo { display: flex; align-items: center; gap: 8px; font: 600 16px/1 var(--serif); text-decoration: none; }
-.tag { font: 700 10px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--muted);
-  padding: 7px 10px; border: 1px dashed rgba(238, 242, 248, .3); border-radius: 6px; }
 
 .intro { position: fixed; z-index: 2; left: max(24px, 3vw); bottom: max(28px, 4vh); max-width: 300px; transition: opacity .5s; }
 .focused .intro { opacity: 0; pointer-events: none; }
@@ -48,7 +46,6 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   .info[hidden] { transform: translateY(40px); }
   .intro { left: 16px; right: 16px; bottom: 20px; max-width: none; }
   .intro h1 { font-size: 26px; }
-  .tag { display: none; }
   .logo { font-size: 15px; }
 }
 

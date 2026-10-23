@@ -8,7 +8,8 @@ for reading. The [README](README.md) has the overview.
 [Loft](#3-the-loft-sept-30) · [Shipping it](#4-shipping-it-sept-30--oct-1) ·
 [Sections](#5-loft-sections-and-outfit-characters-oct-2) · [Performance](#6-performance-oct-2--oct-5) ·
 [Coin flip](#7-the-coin-flip-oct-5) · [Polish](#8-polish-oct-5--oct-6) · [Restyle](#9-loft-restyle-oct-6) ·
-[Résumé](#10-the-résumé-campfire-oct-8) · [Bugs](#11-bugs-found-later)
+[Résumé](#10-the-résumé-campfire-oct-8) · [Bugs](#11-bugs-found-later) ·
+[Rooftop](#12-the-rooftop-oct-22--oct-23)
 
 ---
 
@@ -183,6 +184,32 @@ The intro's centrepiece: Neo's hackathon coin.
   loft existed, so attaching it threw inside the promise and was silently swallowed. Tests had used *Skip intro*,
   which builds the loft first, so it went unnoticed. Now the image is fetched early but attached when the loft is
   built. Found while recording the README preview in a headless browser that went through the real intro.
+
+## 12. The rooftop (Oct 22 – Oct 23)
+
+A second scene, built as a prototype on its own branch and promoted to the home page on Oct 23. The loft moved to
+`/loft.html`, and the rooftop's "This website" card links to it.
+
+- **The idea:** a calmer, faster front door. Neo sits on a ledge at golden hour with Manhattan across the river,
+  and the portfolio is five playing cards fanned above him (Hobitual, Gamify.Life, this website, the résumé, about
+  me), each with a real screenshot. Hovering lifts a card toward you; clicking glides the camera over while the card flies up front and
+  its details slide in. The résumé card downloads the PDF.
+- **Baked in Blender, finished live:** `rooftop/build_rooftop.py` builds the roof, ledge, façade and props in
+  Blender, bakes their golden-hour lighting in Cycles (the ledge at higher resolution and samples) and exports them
+  for three.js, where they're shown unlit. Textures are mapped in metres, so bricks are life-size and nothing streaks.
+  The skyline is plain geometry whose lit windows are drawn by a shader, so it costs no texture download; the river's
+  sun streak and the sky are shaders too.
+- **Iterations:** rooftops and a slope below the ledge gave way to open water and a waterfront with piers; the
+  camera pulled back; Neo moved from three-quarter profile to facing the camera; the card fan tightened to a 140°
+  arc and scales with the screen width; phones get a closer camera and bigger cards. Earlier prototypes
+  (a ring of cards, a snowy ridge with a campfire) were shelved; the card backs went from five designs to one.
+- **Slim Neo:** `rooftop/slim-neo.sh` rebuilds a rooftop-only Neo from the main model: 30k → 15k triangles, smaller
+  AVIF textures, the walk clip dropped (only sitting and idle play here). 1.48 MB → 480 KB.
+- **Arrival:** the screen holds on black until the scene, Neo and the shaders are ready, then a crane-down reveal,
+  the cards pop in, and the camera drifts gently with the pointer. Reduced motion skips the reveal.
+- **Going live:** the "preview" label and `noindex` came off, the page took the loft's search and link-preview tags
+  with a new rooftop preview image, and `/rooftop.html` redirects home. Tested under the production security headers:
+  the import map is identical to the loft's, so the same CSP hash covers both pages.
 
 ---
 

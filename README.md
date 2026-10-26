@@ -8,7 +8,7 @@ A portfolio you look around instead of scroll through, in two scenes.
 
 **The rooftop** (home page): my 3D avatar, Neo, sits on a ledge at golden hour with Manhattan across the river and
 five playing cards fanned above him: two projects, this website, my résumé and an about-me card. Hover a card and it
-lifts toward you; click it and the camera glides over while the card flies up front with the details.
+lifts toward you; click it and Neo gets up off the ledge as the camera glides over and the card flies up front with the details.
 
 **The loft** ([/loft.html](https://nehemiaslandaverde.com/loft.html)), the first version and still live: Neo paces a
 dark void; click anywhere and he picks up his hackathon coin. Flick it upward and it streaks off like a shooting
@@ -126,7 +126,6 @@ npx @gltf-transform/cli@4 meshopt b.glb public/out.glb --level medium
 ## What's next
 
 - **Projects corner:** the garage becomes a walk-through of Hobitual and Gamify.Life.
-- **The rooftop's next phase:** a real stand-up animation when a card opens.
 
 ## License
 

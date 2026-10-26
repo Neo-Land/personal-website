@@ -207,6 +207,13 @@ A second scene, built as a prototype on its own branch and promoted to the home 
   AVIF textures, the walk clip dropped (only sitting and idle play here). 1.48 MB → 480 KB.
 - **Arrival:** the screen holds on black until the scene, Neo and the shaders are ready, then a crane-down reveal,
   the cards pop in, and the camera drifts gently with the pointer. Reduced motion skips the reveal.
+- **Standing up (Oct 26):** opening a card used to crossfade Neo straight from sitting to idle. Now he stands up for
+  real, reusing the rise from the loft's coin pickup (Mixamo "Lifting", 84 KB, already on the site): from sitting he
+  blends down into its crouch with a hand on the ground (frame 40), rises (to frame 76, before its arms come up to
+  hold the coin), then settles into idle. The palm-up hand turn keyed for the coin is filtered out. Closing a card
+  plays the same rise backwards, so he sits down the way he got up. The opened card now waits for the first 30 % of
+  the camera move, because it used to fly straight across him and hide the whole thing. Reduced motion keeps a plain
+  crossfade.
 - **Going live:** the "preview" label and `noindex` came off, the page took the loft's search and link-preview tags
   with a new rooftop preview image, and `/rooftop.html` redirects home. Tested under the production security headers:
   the import map is identical to the loft's, so the same CSP hash covers both pages.

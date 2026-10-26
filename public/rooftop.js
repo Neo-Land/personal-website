@@ -1,8 +1,8 @@
 // The rooftop scene, phase 2: the roof, ledge, props and the rooftops below are baked in Blender
 // (rooftop/build_rooftop.py); the Manhattan skyline is modelled there too but its windows are drawn live here.
 // Sitting Neo with the cards orbiting him like an aura (still grey stand-ins). Clicking a
-// card glides the camera so Neo sits left of frame, flies the card up front, crossfades Neo sit → idle (the real
-// stand-up clip comes in phase 3) and slides in the card's info. ?perf shows fps / draw calls / memory.
+// card glides the camera so Neo sits left of frame, flies the card up front, stands Neo up (see stand()) and slides in
+// the card's info. ?perf shows fps / draw calls / memory.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -186,10 +186,31 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo-slim.glb', (g) => {
   sit = clip('neo_sit'); idle = clip('neo_idle');
   sit.play(); ready = true; begin();
 });
-function stand(up) {                                              // placeholder for phase 3's stand-up clip
+// Standing up: the rise from Mixamo "Lifting" (the loft's coin pickup, lift.glb: it binds to Neo's bones by name), from
+// the moment his hand is on the ground until he's upright. sit → blend down into that crouch → rise → idle; closing a
+// card plays the same rise backwards, so he sits down the way he got up. Reduced motion: a plain crossfade.
+const RISE = [40, 76];                                             // Lifting frames used (30 fps): hand on the ground → upright
+const CARD_LAG = 0.3;                                               // share of the camera move before the opened card sets off
+let rise = null, standT = 0;
+new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('lift.glb', (g) => {
+  const c = g.animations[0];
+  c.tracks = c.tracks.filter((t) => !t.name.startsWith('mixamorigRightHand.quaternion'));   // its palm-up turn is the coin trick
+  rise = THREE.AnimationUtils.subclip(c, 'rise', RISE[0], RISE[1], 30);
+});
+function to(a, d) {                                                // fade every other pose out and this one in
+  for (const b of [sit, idle, rise && mixer.clipAction(rise)]) if (b && b !== a) b.fadeOut(d);
+  a.enabled = true; a.setEffectiveWeight(1); a.fadeIn(d).play();
+}
+function stand(up) {
   if (!ready) return;
-  const [from, to] = up ? [sit, idle] : [idle, sit];
-  to.reset().play(); from.crossFadeTo(to, 0.9, false);
+  clearTimeout(standT);
+  const end = up ? idle : sit;
+  if (!rise || still) { end.reset(); to(end, 0.6); return; }
+  const r = mixer.clipAction(rise);
+  r.setLoop(THREE.LoopOnce, 1); r.clampWhenFinished = true;
+  r.reset(); r.timeScale = up ? 1 : -1; r.time = up ? 0 : rise.duration;
+  to(r, up ? 0.45 : 0.3);
+  standT = setTimeout(() => { end.reset(); to(end, 0.5); }, (rise.duration - 0.45) * 1000);
 }
 
 // ── cards: five playing cards fanned along the curve, face up (real screenshots); they arrive back-up and turn over ──
@@ -367,9 +388,10 @@ renderer.setAnimationLoop(() => {
     const turn = easeIO(clamp01((revealT - POP_AT - i * POP_GAP - 0.3) / 0.6));   // arrives back-up, then turns face-up
     u.flip.rotation.y = Math.PI * (1 - turn);
     if (i === focused) {                                          // fly from its place on the curve to the spot up front, upright
-      m.position.lerpVectors(dir === -1 ? m.position : flyFrom, focusSpot(), k);
-      m.quaternion.slerp(camera.quaternion, k);
-      u.s = 1 + k * (phone ? 0.25 : 0.4);
+      const kc = ease(clamp01((t01 - CARD_LAG) / (1 - CARD_LAG)));  // the card waits a beat so you see Neo start to stand
+      m.position.lerpVectors(dir === -1 ? m.position : flyFrom, focusSpot(), kc);
+      m.quaternion.slerp(camera.quaternion, kc);
+      u.s = 1 + kc * (phone ? 0.25 : 0.4);
     } else {
       u.s += ((i === on ? HOVER : 1) - u.s) * Math.min(1, still ? 1 : dt * 10);
       m.position.addScaledVector(tmp.subVectors(camera.position, m.position).normalize(), LIFT * (u.s - 1) / (HOVER - 1));

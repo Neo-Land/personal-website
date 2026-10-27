@@ -107,7 +107,7 @@ export function drawFront(x, W, H, { name, cat, line, img, fit = 'cover', bg = '
   x.save();
   x.beginPath(); x.roundRect(0, 0, W, H, 24); x.clip();
   x.fillStyle = CREAM; x.fillRect(0, 0, W, H);
-  x.fillStyle = '#9a6b1f'; x.font = '700 17px ui-monospace, Menlo, monospace'; x.fillText(cat.toUpperCase(), 28, 44);
+  x.fillStyle = '#9a6b1f'; x.font = '500 17px "IBM Plex Mono", ui-monospace, monospace'; x.fillText(cat.toUpperCase(), 28, 44);
   const ix = 24, iy = 60, iw = W - 48, ih = H * 0.5;                  // the picture window
   x.save(); x.beginPath(); x.roundRect(ix, iy, iw, ih, 10); x.clip();
   x.fillStyle = bg; x.fillRect(ix, iy, iw, ih);
@@ -122,10 +122,10 @@ export function drawFront(x, W, H, { name, cat, line, img, fit = 'cover', bg = '
   }
   x.restore();
   x.strokeStyle = 'rgba(42,47,58,.35)'; x.lineWidth = 2; x.beginPath(); x.roundRect(ix, iy, iw, ih, 10); x.stroke();
-  x.fillStyle = INK; x.font = '600 44px Georgia, "Iowan Old Style", serif'; x.fillText(name, 28, iy + ih + 58);
-  x.fillStyle = '#4a4f5c'; x.font = '400 22px system-ui, -apple-system, sans-serif';
+  x.fillStyle = INK; x.font = '600 44px Fraunces, Georgia, serif'; x.fillText(name, 28, iy + ih + 58);
+  x.fillStyle = '#4a4f5c'; x.font = '400 22px "Instrument Sans", system-ui, sans-serif';
   wrap(x, line, W - 56).slice(0, 2).forEach((l, k) => x.fillText(l, 28, iy + ih + 96 + k * 29));
-  x.fillStyle = resume ? '#a23a22' : '#2743d6'; x.font = '700 18px ui-monospace, Menlo, monospace';
+  x.fillStyle = resume ? '#a23a22' : NAVY; x.font = '500 18px "IBM Plex Mono", ui-monospace, monospace';
   x.fillText(resume ? 'DOWNLOAD ↓' : 'OPEN →', 28, H - 32);
   wear(x, W, H, r);
   x.restore();

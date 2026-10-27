@@ -48,6 +48,17 @@ SOFTWARE.
 
 
 ==============================================================================
+Fraunces 600 + 400 italic, Instrument Sans 400 + 600, IBM Plex Mono 500 (latin; vendor/fonts/), from npm
+@fontsource/fraunces, @fontsource/instrument-sans, @fontsource/ibm-plex-mono 5.3.0
+==============================================================================
+Copyright 2020 The Fraunces Project Authors (github.com/undercasetype/Fraunces)
+Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans)
+Copyright 2017 IBM Corp. All rights reserved.
+
+These Font Software files are licensed under the SIL Open Font License, Version 1.1 (full text below, with Bangers).
+
+
+==============================================================================
 Bangers 400 latin (vendor/fonts/bangers-latin-400.woff2), from npm @fontsource/bangers 5.3.0
 ==============================================================================
 Copyright 2010 The Bangers Project Authors (https://github.com/googlefonts/bangers)

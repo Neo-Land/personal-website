@@ -2,8 +2,9 @@
 # The importmap hash in script-src must be updated if the <script type="importmap"> block in index.html changes.
 # style-src is 'self' only: no inline <style> or style="" anywhere (JS sets element.style, which CSP allows).
 # 'wasm-unsafe-eval' lets the self-hosted meshopt decoder compile its WebAssembly (no JS eval is allowed).
+# static.cloudflareinsights.com / cloudflareinsights.com: Cloudflare Web Analytics (its beacon script, and where it reports).
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'sha256-CCG8uL4+eqdnWv58X0gtyivUPcLdZu8ZGPw2D0nV94Q='; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' blob:; worker-src 'self' blob:; font-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'sha256-CCG8uL4+eqdnWv58X0gtyivUPcLdZu8ZGPw2D0nV94Q=' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' blob: https://cloudflareinsights.com; worker-src 'self' blob:; font-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY

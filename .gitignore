@@ -46,3 +46,6 @@ ridge/*_raw.glb
 
 # Tripo CLI local config (may hold account details): never commit
 .tripo/
+
+# Tripo model downloads (working files, not used by the site)
+tripo-out/

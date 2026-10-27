@@ -117,17 +117,17 @@ function panel(x, art, ix, iy, iw, ih, img) {                       // plain cre
   x.fillStyle = CREAM; x.fillRect(ix, iy, iw, ih);
   const cx = ix + iw / 2, cy = iy + ih / 2;
   if (art === 'linkedin') {
-    const s = ih * 0.46;
+    const s = ih * 0.62;
     x.fillStyle = denim(x, cx, cy, s / 2); x.beginPath(); x.roundRect(cx - s / 2, cy - s / 2, s, s, s * 0.17); x.fill();
     x.fillStyle = CREAM; x.font = `700 ${s * 0.64}px "Instrument Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('in', cx, cy + s * 0.04); x.textAlign = 'left'; x.textBaseline = 'alphabetic';
   } else if (art === 'github') {
-    const s = ih * 0.5 / 24;
+    const s = ih * 0.66 / 24;
     x.save(); x.translate(cx - 12 * s, cy - 12 * s); x.scale(s, s); x.fillStyle = denim(x, 12, 12, 12); x.fill(GITHUB); x.restore();
   } else if (art === 'website') {
-    const R = ih * 0.36;
-    if (img) { const s = R * 1.15; x.drawImage(img, cx - s / 2, cy - s / 2, s, s); }
-    x.fillStyle = '#3e5b94'; x.font = '600 26px Fraunces, Georgia, serif'; x.textBaseline = 'middle';
+    const R = ih * 0.3;                                       // the name hugs the star
+    if (img) { const s = ih * 0.46; x.drawImage(img, cx - s / 2, cy - s / 2, s, s); }
+    x.fillStyle = '#3e5b94'; x.font = '600 30px Fraunces, Georgia, serif'; x.textBaseline = 'middle';
     if ('letterSpacing' in x) x.letterSpacing = '3px';
     arcText(x, 'NEHEMIAS', cx, cy, R, true); arcText(x, 'LANDAVERDE', cx, cy, R, false);
     if ('letterSpacing' in x) x.letterSpacing = '0px';

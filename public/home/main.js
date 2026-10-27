@@ -44,9 +44,9 @@ function size() {
   // the arc scales with how much width the camera sees at Neo's distance: same shape everywhere, smaller on narrow screens
   const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(pose.home.fov / 2)) * camera.aspect);
   const viewW = 2 * pose.home.p.distanceTo(NEO) * Math.tan(hfov / 2);
-  const rx = Math.min(1.4, viewW * 0.29);                          // spread wide, arched a little taller than wide
+  const r = Math.min(0.62, viewW * 0.13);                          // the circle round him the cards stand on, kept tight
   sitYaw = Math.atan2(pose.home.p.x - NEO.x, pose.home.p.z - NEO.z);   // sitting, Neo (and the arc) face you
-  layoutCards(rx, rx * 1.02, sitYaw, Math.min(0.86, (viewW * 0.11) / CARD_WIDTH));
+  layoutCards(r, r, sitYaw, Math.min(0.86, (viewW * 0.11) / CARD_WIDTH));
   // the reveal starts higher, further back and looking up toward the sun over the skyline, then cranes down to him
   pose.start.p.copy(pose.home.p).add(phone ? new THREE.Vector3(2.5, 3.5, 6) : new THREE.Vector3(4, 3.2, 7));
   pose.start.l.copy(SUN).multiplyScalar(700).add(new THREE.Vector3(0, 30, 0)); pose.start.fov = phone ? 66 : 48;

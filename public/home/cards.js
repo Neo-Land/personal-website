@@ -2,7 +2,7 @@
 // screen-reader version); faces are drawn by card-art.js. They arrive back-up after the reveal, turn over, grow
 // toward you on hover, and the opened one flies up in front of the camera.
 //
-// Layout: all the same size on a 160° arc round him, the cards a recruiter wants (data-main: LinkedIn, Résumé, GitHub)
+// Layout: all the same size on a half circle round him, each pointing outward with its bottom edge on the circle, the cards a recruiter wants (data-main: LinkedIn, Résumé, GitHub)
 // across the top, the rest split down the two sides.
 import * as THREE from 'three';
 import { scene, camera, still, NEO, ease, easeIO, easeOutBack, clamp01 } from './stage.js';
@@ -11,8 +11,8 @@ import { drawBack, drawFront } from './card-art.js';
 export const buttons = [...document.querySelectorAll('#cards .card')];
 
 const CW = 400, CH = 560, CARD = 0.5;                               // canvas size and card width (m): poker-card proportions (5:7)
-const ARC = 160;                                                    // degrees of the arc (wider and the ends sink behind the ledge)
-const FAN = 0.33;                                                   // how far each card leans with the curve (1 = fully radial)
+const ARC = 180;                                                    // degrees of the arc: a half circle
+const FAN = 1;                                                      // how far each card leans with the curve (1 = fully radial)
 const HOVER = 1.15, LIFT = 0.1;                                     // a hovered card: bigger, and a little toward you
 const CARD_LAG = 0.3;                                               // share of the camera move before the opened card sets off
 const POP_GAP = 0.08, POP_LEN = 0.5;                                // seconds between cards arriving, and each arrival
@@ -51,7 +51,7 @@ const hits = cards.map((c, i) => { const h = new THREE.Mesh(cardGeo, hitMat); h.
 
 // ── the arc: an upright ring behind him facing the camera, one slot per card ──
 const ring = new THREE.Object3D(); ring.rotation.order = 'YXZ'; scene.add(ring);
-ring.position.copy(NEO).add(new THREE.Vector3(0, 0.55, -0.15));     // high enough that the arc's ends clear the headline
+ring.position.copy(NEO).add(new THREE.Vector3(0, 0.42, -0.15));     // round him, the ends just clearing the headline
 const slots = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
 
 const isMain = buttons.map((b) => 'main' in b.dataset);
@@ -67,7 +67,7 @@ let scale = 1;                                                      // card size
 // rx, ry: the arc's half-width / height (m); facing: the ring's yaw toward the camera
 export function layoutCards(rx, ry, facing, cardScale) {
   slots.forEach((s, i) => s.position.set(-Math.cos(slotAngle[i]) * rx, Math.sin(slotAngle[i]) * ry, slotDepth[i]));
-  ring.rotation.set(-0.12, facing, 0);                              // top leaning back a touch
+  ring.rotation.set(-0.12, facing, -0.1);                           // top leaning back a touch; rolled so it reads level from the camera
   scale = cardScale;
 }
 export const CARD_WIDTH = CARD;
@@ -83,12 +83,14 @@ export function pickCard(e) {
 // s: { revealT, popAt (seconds), highlighted (card index or -1), focused (-1 or index), flyFrom (where it left),
 //      dir (+1 opening, -1 closing), t01 (camera move 0 … 1), k (eased t01), spot (where the opened card floats), phone }
 const ringQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1), tmp = new THREE.Vector3();
+const HALF_H = CARD * CH / CW / 2;                                  // half a card's height (m), before scaling
 export function updateCards(dt, s) {
   ring.getWorldQuaternion(ringQ);
   cards.forEach((m, i) => {
     const u = m.userData;
     slots[i].updateMatrixWorld(); slots[i].getWorldPosition(m.position);
     m.quaternion.copy(ringQ).multiply(rollQ.setFromAxisAngle(Z, (Math.PI / 2 - slotAngle[i]) * FAN));   // fanned along the curve
+    m.position.addScaledVector(tmp.set(0, 1, 0).applyQuaternion(m.quaternion), HALF_H * scale);   // its bottom edge on the circle
     hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion); hits[i].scale.setScalar(1.15 * scale);
     u.flip.rotation.y = Math.PI * (1 - easeIO(clamp01((s.revealT - s.popAt - i * POP_GAP - 0.3) / 0.6)));   // arrives back-up, then turns
     if (i === s.focused) {                                          // fly from its place on the arc to the spot up front, upright

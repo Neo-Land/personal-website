@@ -1,5 +1,5 @@
 # Builds the Manhattan skyline seen from the rooftop and exports rooftop/skyline_raw.glb (no baking: the lit windows
-# are drawn live by a shader in rooftop.js, which reads the UVs here as metres: u along a wall, v up).
+# are drawn live by a shader in public/home/city.js, which reads the UVs here as metres: u along a wall, v up).
 # Run from the repo root (a few seconds):
 #   /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P rooftop/build_skyline.py
 #   npx -y @gltf-transform/cli@4 meshopt rooftop/skyline_raw.glb public/skyline.glb --level medium
@@ -15,7 +15,7 @@ from mathutils import Vector
 OUT = os.path.join(os.getcwd(), 'rooftop')
 G = -84.0                                              # street level
 LAT0, LON0 = 40.7685, -74.0215                         # the viewpoint: up on the Palisades at Weehawken (Boulevard East)
-S, ROT, SKY_X = 0.5, -40.0, 280.0                      # city scale, turn about the viewpoint (degrees), rooftop.js's shift
+S, ROT, SKY_X = 0.5, -40.0, 280.0                      # city scale, turn about the viewpoint (degrees), SKY_X in public/home/city.js
 GRID = 29.0                                            # Manhattan's street grid, degrees off true north
 def real(lat, lon): return ((LAT0 - lat) * 111000, -(lon - LON0) * 84330)   # metres: x = south (right), z = -east
 random.seed(4)
@@ -214,7 +214,7 @@ ob = bpy.data.objects.new('skyline', me); sc.collection.objects.link(ob)
 ob.select_set(True)
 
 # ── the boroughs behind: Long Island City's towers behind Midtown, Queens beyond, Brooklyn's waterfront to the right ──
-# Silhouettes only (rooftop.js draws them faded into the haze, no windows). Anything farther than FAR_MAX from the eye
+# Silhouettes only (public/home/city.js draws them faded into the haze, no windows). Anything farther than FAR_MAX from the eye
 # is pulled in toward it and shrunk by the same factor: same direction, same apparent size, but inside the camera's
 # 3 km draw distance.
 FAR_MAX, EYE = 2600.0, (-SKY_X, 2.0, 0.0)                           # EYE: the camera, in the skyline's own coordinates

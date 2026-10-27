@@ -248,7 +248,16 @@ A second scene, built as a prototype on its own branch and promoted to the home 
   GitHub's mark (Simple Icons, CC0) in cream on the card navy; This website: the denim star ringed by NEHEMIAS over the
   top and LANDAVERDE beneath (letters set along the circle); About me: a photo with its edges faded into the card
   (cropped, metadata stripped, 33 KB). Cards are 86 % of their old size on a wider, taller arc, each a hair nearer the
-  camera the closer it is to the top, so overlapping cards no longer flicker (they used to share one plane). The hero's label and surname take the denim star's deeper blues (the surname a
+  camera the closer it is to the top, so overlapping cards no longer flicker (they used to share one plane).
+- **Refactor (Oct 27):** `rooftop.js` (534 lines doing everything) split into `public/home/`, one module per part:
+  `main.js` (page logic: camera poses, opening/closing cards, input, the reveal, the frame loop), `stage.js`
+  (renderer, scene, camera, shared constants, easing), `look.js` (the cinematic pass), `sky.js` (sky + lights),
+  `river.js` (cliff, river, paper boats), `city.js` (baked rooftop, shore, skyline), `neo.js` (loading, standing and
+  sitting), `cards.js` (meshes, layout, hover, fly-in), `card-art.js` (faces). Each starts with what it does; the
+  "ferries" are now `paperBoat()`s; dead code went (a 'below' node no longer in the model). Behaviour checked to be
+  identical: reduced-motion screenshots match the old ones pixel for pixel apart from the randomly placed piers, and
+  every interaction (reveal, hover, open/close by Back and Esc, links, résumé download, ?look=off) still works.
+  `?perf` now counts the whole frame (it used to show only the last effect pass: "1 call"). The hero's label and surname take the denim star's deeper blues (the surname a
   mid-to-deep gradient): the star is the personal brand mark.
 - **Going live:** the "preview" label and `noindex` came off, the page took the loft's search and link-preview tags
   with a new rooftop preview image, and `/rooftop.html` redirects home. Tested under the production security headers:

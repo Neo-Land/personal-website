@@ -11,8 +11,8 @@ from mathutils import Vector
 
 OUT = os.path.join(os.getcwd(), 'rooftop')
 SAMPLES = int(os.environ.get('SAMPLES', 128))
-SUN = Vector((-0.45, 0.12, -1)).normalized()          # three.js direction to the sun (= SUN in rooftop.js)
-NEO = (0.6, 0.5, -4.25)                                # where he sits on the ledge (= NEO in rooftop.js)
+SUN = Vector((-0.45, 0.12, -1)).normalized()          # three.js direction to the sun (= SUN in public/home/stage.js)
+NEO = (0.6, 0.5, -4.25)                                # where he sits on the ledge (= NEO in public/home/stage.js)
 random.seed(4)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 sc = bpy.context.scene

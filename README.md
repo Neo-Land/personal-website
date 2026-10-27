@@ -87,7 +87,8 @@ Then open <http://localhost:8000/>.
 | Path | What it is |
 |---|---|
 | `public/` | **The deployed site: only this folder is published** |
-| `public/index.html`, `rooftop.js`, `rooftop.css`, `card-art.js` | The rooftop home page: scene, cards and card artwork |
+| `public/index.html`, `rooftop.css` | The rooftop home page: markup (incl. the cards' info panels) and styles |
+| `public/home/` | The rooftop's code, one module per part: `main.js` (page logic, camera, input), `stage.js`, `look.js` (cinematic pass), `sky.js`, `river.js` (paper boats), `city.js` (shore + skyline), `neo.js`, `cards.js`, `card-art.js` |
 | `public/loft.html`, `app.js`, `style.css` | The loft: intro, coin flip, loft, globe and résumé |
 | `rooftop/` | Blender scripts: the rooftop build-and-bake, the Manhattan skyline (landmarks modelled to their real silhouettes), and the recipe that slims Neo |
 | `public/*.glb` | Neo, his outfit variants, the car, the coin and props (meshopt + WebP) |

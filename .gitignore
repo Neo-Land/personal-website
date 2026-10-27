@@ -40,3 +40,9 @@ rooftop/*_bake.png
 rooftop/*_raw.glb
 ridge/*_bake.png
 ridge/*_raw.glb
+
+# Headless-browser test output (screenshots, downloads)
+.playwright-mcp/
+
+# Tripo CLI local config (may hold account details): never commit
+.tripo/

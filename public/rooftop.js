@@ -162,9 +162,21 @@ const ferries = [[-200, -330, 6], [150, -560, -4.5], [-420, -780, 3.5]].map(([x,
 // Manhattan's ground: a low slab the skyline stands on, a seawall facing us, piers, and low buildings along the
 // waterfront so the towers rise out of a city instead of the water. All instanced, coloured to sink into the haze.
 const SKY_X = 280;                                               // = the skyline's shift in the loader below
-const land = new THREE.Mesh(new THREE.BoxGeometry(2500, 4, 1400), new THREE.MeshBasicMaterial({ color: 0x5a4640 }));
+// the far shore takes the skyline's lighter haze (SKY_HAZE), so nearer things stay darker than farther ones
+const SKY_HAZE = 0.0006;
+const haze = (color) => new THREE.ShaderMaterial({
+  fog: false, toneMapped: false, uniforms: { uC: { value: new THREE.Color(color) }, uFogC: { value: scene.fog.color }, uFogD: { value: SKY_HAZE } },
+  vertexShader: `varying float vD; void main(){ vec4 p = vec4(position, 1.);
+    #ifdef USE_INSTANCING
+      p = instanceMatrix * p;
+    #endif
+    vec4 mv = modelViewMatrix * p; vD = -mv.z; gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `uniform vec3 uC, uFogC; uniform float uFogD; varying float vD;
+    void main(){ gl_FragColor = vec4(mix(uC, uFogC, 1. - exp(-pow(vD * uFogD, 2.))), 1.); }`,
+});
+const land = new THREE.Mesh(new THREE.BoxGeometry(2500, 4, 1400), haze(0x3a2e30));
 land.position.set(SKY_X, -84, -1490); scene.add(land);           // top at y -82, front (the seawall) at z -790, back past One WTC
-const lowMat = new THREE.MeshBasicMaterial({ color: 0x4a3a3c });
+const lowMat = haze(0x2c2428);
 const PIERS = 34, piers = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), lowMat, PIERS);
 for (let i = 0; i < PIERS; i++) {
   const x = SKY_X - 1200 + i * 72 + (Math.random() - 0.5) * 20, len = 40 + Math.random() * 50;
@@ -178,7 +190,7 @@ for (let i = 0; i < LOW; i++) {
 }
 scene.add(low);
 // far-left industrial shore: a few stacks fading into the haze
-const stackMat = new THREE.MeshBasicMaterial({ color: 0x3a3036 });
+const stackMat = haze(0x2c2428);
 for (const [x, h, z] of [[-820, 120, -1250], [-780, 95, -1270], [-735, 140, -1240], [-690, 80, -1300], [-900, 60, -1220]]) {
   const st = new THREE.Mesh(new THREE.CylinderGeometry(4, 5, h, 10), stackMat); st.position.set(x, -84 + h / 2, z); scene.add(st);
 }
@@ -186,31 +198,25 @@ for (const [x, h, z] of [[-820, 120, -1250], [-780, 95, -1270], [-735, 140, -124
 // windows: a grid in the skyline's metre UVs (3.2 m bays, 3.6 m floors), ~28% lit warm or cool; far away, where a
 // window is smaller than a pixel, the grid fades to its average so it doesn't shimmer
 const windows = new THREE.ShaderMaterial({
-  fog: true, toneMapped: false,
-  uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uWall: { value: new THREE.Color(0x232636) } }]),
-  vertexShader: `varying vec2 vUv; varying vec3 vN;
-    #include <common>
-    #include <fog_pars_vertex>
-    void main(){ vUv = uv; vN = normal; vec4 mvPosition = modelViewMatrix * vec4(position, 1.); gl_Position = projectionMatrix * mvPosition;
-      #include <fog_vertex>
-    }`,
-  fragmentShader: `uniform vec3 uWall; varying vec2 vUv; varying vec3 vN;
-    #include <common>
-    #include <fog_pars_fragment>
+  fog: false, toneMapped: false,                                      // its own, lighter haze: the city sits at true scaled distances
+  uniforms: { uWall: { value: new THREE.Color(0x232636) }, uFogC: { value: scene.fog.color }, uFogD: { value: SKY_HAZE } },
+  vertexShader: `varying vec2 vUv; varying vec3 vW; varying float vD;
+    void main(){ vUv = uv; vW = (modelMatrix * vec4(position, 1.)).xyz; vec4 mvPosition = modelViewMatrix * vec4(position, 1.); vD = -mvPosition.z; gl_Position = projectionMatrix * mvPosition; }`,
+  fragmentShader: `uniform vec3 uWall, uFogC; uniform float uFogD; varying vec2 vUv; varying vec3 vW; varying float vD;
     float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     void main(){
       vec3 c = uWall;
+      vec3 vN = normalize(cross(dFdx(vW), dFdy(vW)));                 // flat face normal (the mesh ships without normals)
       if (abs(vN.y) < .5) {
         vec2 cell = vUv / vec2(3.2, 3.6), f = fract(cell), id = floor(cell);
         float win = step(.25, f.x) * step(f.x, .75) * step(.3, f.y) * step(f.y, .8);
         float on = step(.72, h(id));
         vec3 lit = mix(vec3(1., .74, .42), vec3(.7, .82, 1.), step(.65, h(id + 7.))) * (.55 + .5 * h(id + 3.));
         vec3 near = mix(c, lit, win * on) + uWall * .35 * win * (1. - on);
-        vec3 far = c + vec3(1., .78, .5) * .28 * .25 * .8;                     // the grid's average glow
+        vec3 far = c + vec3(1., .78, .5) * .1;                                 // the grid's average glow (lit windows + sky reflections)
         c = mix(near, far, clamp(length(fwidth(cell)) * 1.5 - .5, 0., 1.));
       }
-      gl_FragColor = vec4(c, 1.);
-      #include <fog_fragment>
+      gl_FragColor = vec4(mix(c, uFogC, 1. - exp(-pow(vD * uFogD, 2.))), 1.);
     }`,
 });
 new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('rooftop.glb', (g) => {

@@ -182,6 +182,38 @@ place([v for v in bm.verts if v not in before], S, 0, *WTC_AT)
 me = bpy.data.meshes.new('skyline'); bm.to_mesh(me); bm.free()
 ob = bpy.data.objects.new('skyline', me); sc.collection.objects.link(ob)
 ob.select_set(True)
+
+# ── the boroughs behind: Long Island City's towers behind Midtown, Queens beyond, Brooklyn's waterfront to the right ──
+# Silhouettes only (rooftop.js draws them faded into the haze, no windows). Anything farther than FAR_MAX from the eye
+# is pulled in toward it and shrunk by the same factor: same direction, same apparent size, but inside the camera's
+# 3 km draw distance.
+FAR_MAX, EYE = 2600.0, (-SKY_X, 2.0, 0.0)                           # EYE: the camera, in the skyline's own coordinates
+bm = bmesh.new(); uvl = bm.loops.layers.uv.new('UVMap')
+def far(lat, lon, w, d, h):
+    before = set(bm.verts); tower(*real(lat, lon), w, d, h)
+    new = [v for v in bm.verts if v not in before]
+    place(new, S, ROT, -SKY_X, 0)
+    cx = sum(v.co.x for v in new) / len(new); cz = -sum(v.co.y for v in new) / len(new)
+    dist = math.hypot(cx - EYE[0], cz - EYE[2])
+    if dist > FAR_MAX:
+        k = FAR_MAX / dist
+        for v in new:
+            x, y, z = v.co.x, v.co.z, -v.co.y
+            v.co = B(EYE[0] + k * (x - EYE[0]), EYE[1] + k * (y - EYE[1]), EYE[2] + k * (z - EYE[2]))
+        low = min(v.co.z for v in new)                              # pulling in lifts the base off the ground: drop it back
+        for v in new:
+            if v.co.z < low + 0.01: v.co.z = G
+for i in range(30):                                                  # Long Island City: Skyline Tower, Court Square and co.
+    far(random.uniform(40.742, 40.753), random.uniform(-73.947, -73.935), random.uniform(25, 45), random.uniform(25, 45), random.uniform(70, 230))
+far(40.7477, -73.9420, 40, 40, 234); far(40.7473, -73.9447, 45, 45, 203)
+for i in range(140):                                                 # Queens beyond: Astoria, Sunnyside, low and mid-rise
+    far(random.uniform(40.735, 40.775), random.uniform(-73.935, -73.880), random.uniform(25, 60), random.uniform(25, 60), random.uniform(15, 55))
+for i in range(90):                                                  # Brooklyn's waterfront: Greenpoint, Williamsburg
+    far(random.uniform(40.705, 40.735), random.uniform(-73.965, -73.935), random.uniform(25, 50), random.uniform(25, 50), random.uniform(20, 140))
+bm.normal_update()
+me2 = bpy.data.meshes.new('skyline_far'); bm.to_mesh(me2); bm.free()
+ob2 = bpy.data.objects.new('skyline_far', me2); sc.collection.objects.link(ob2)
+ob2.select_set(True)
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'skyline_raw.glb'), use_selection=True, export_format='GLB',
                           export_materials='NONE', export_normals=False, export_lights=False, export_cameras=False)
-print('SKYLINE DONE', len(me.polygons), 'faces', flush=True)
+print('SKYLINE DONE', len(me.polygons), '+', len(me2.polygons), 'faces', flush=True)

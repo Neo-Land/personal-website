@@ -164,15 +164,15 @@ const ferries = [[-200, -330, 6], [150, -560, -4.5], [-420, -780, 3.5]].map(([x,
 const SKY_X = 280;                                               // = the skyline's shift in the loader below
 // the far shore takes the skyline's lighter haze (SKY_HAZE), so nearer things stay darker than farther ones
 const SKY_HAZE = 0.0006;
-const haze = (color) => new THREE.ShaderMaterial({
-  fog: false, toneMapped: false, uniforms: { uC: { value: new THREE.Color(color) }, uFogC: { value: scene.fog.color }, uFogD: { value: SKY_HAZE } },
+const haze = (color, fade = 0) => new THREE.ShaderMaterial({        // fade: a floor on how far it sinks into the haze
+  fog: false, toneMapped: false, uniforms: { uC: { value: new THREE.Color(color) }, uFogC: { value: scene.fog.color }, uFogD: { value: SKY_HAZE }, uFade: { value: fade } },
   vertexShader: `varying float vD; void main(){ vec4 p = vec4(position, 1.);
     #ifdef USE_INSTANCING
       p = instanceMatrix * p;
     #endif
     vec4 mv = modelViewMatrix * p; vD = -mv.z; gl_Position = projectionMatrix * mv; }`,
-  fragmentShader: `uniform vec3 uC, uFogC; uniform float uFogD; varying float vD;
-    void main(){ gl_FragColor = vec4(mix(uC, uFogC, 1. - exp(-pow(vD * uFogD, 2.))), 1.); }`,
+  fragmentShader: `uniform vec3 uC, uFogC; uniform float uFogD, uFade; varying float vD;
+    void main(){ gl_FragColor = vec4(mix(uC, uFogC, max(uFade, 1. - exp(-pow(vD * uFogD, 2.)))), 1.); }`,
 });
 const land = new THREE.Mesh(new THREE.BoxGeometry(2500, 4, 1400), haze(0x3a2e30));
 land.position.set(SKY_X, -84, -1490); scene.add(land);           // top at y -82, front (the seawall) at z -790, back past One WTC
@@ -229,9 +229,11 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('rooftop.glb', (g) => {
   scene.add(g.scene);
   worldReady++; begin();
 });
-// the skyline (rooftop/build_skyline.py): real silhouettes for the landmarks, its windows drawn by the shader above
+// the skyline (rooftop/build_skyline.py): real silhouettes for the landmarks, its windows drawn by the shader above;
+// the boroughs behind it are a second mesh, drawn faded
 new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('skyline.glb', (g) => {
-  g.scene.traverse((o) => { if (o.isMesh) o.material = windows; });
+  const boroughs = haze(0x3a2e34, 0.62);                          // Queens and Brooklyn behind: faint silhouettes, no windows
+  g.scene.traverse((o) => { if (o.isMesh) o.material = o.name.startsWith('skyline_far') ? boroughs : windows; });
   g.scene.position.x = SKY_X;                                   // to the right of the river
   scene.add(g.scene);
   worldReady++; begin();

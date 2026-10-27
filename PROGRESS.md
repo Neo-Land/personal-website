@@ -227,6 +227,11 @@ A second scene, built as a prototype on its own branch and promoted to the home 
   piers and ground share their own lighter haze, so nearer things stay darker. The old skyline was stripped from
   `rooftop.glb` (320 → 215 KB); `skyline.glb` ships without normals (the shader derives them) or hidden bottom faces,
   188 KB; the reveal waits for both.
+- **The boroughs behind (Oct 27):** a second, faded layer in `skyline.glb`: Long Island City's towers (Skyline Tower,
+  Court Square) behind Midtown, Queens beyond, Brooklyn's Greenpoint/Williamsburg waterfront to the right, all by
+  lat/long. At the city's scale they'd sit past the camera's 3 km draw distance, so each building beyond 2.6 km is
+  pulled toward the eye and shrunk by the same factor (same direction and apparent size), its base dropped back to the
+  street. Drawn as silhouettes only, at least 62 % sunk into the haze, so they add depth without competing. 208 KB.
 - **Going live:** the "preview" label and `noindex` came off, the page took the loft's search and link-preview tags
   with a new rooftop preview image, and `/rooftop.html` redirects home. Tested under the production security headers:
   the import map is identical to the loft's, so the same CSP hash covers both pages.

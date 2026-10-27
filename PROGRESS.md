@@ -236,6 +236,13 @@ A second scene, built as a prototype on its own branch and promoted to the home 
   empty. The map now runs to ~125th St (Upper West/East Side, Harlem; Central Park's rectangle left open) and adds
   Billionaires' Row: Central Park Tower, 111 West 57th, One57, 220 Central Park South, 53 West 53rd. The ground slab,
   waterfront and piers were widened to the left to carry it. `skyline.glb` 226 KB.
+- **Recruiter-first cards, paper boats, brand blue (Oct 27):** the three cards a recruiter wants (LinkedIn, Résumé,
+  GitHub; `data-main`) take the arc over Neo; Hobitual, Gamify.Life, This website and About me move to a smaller hand
+  (66 %) fanned down the left, each a touch in front of the last so they never cut through each other. LinkedIn and
+  GitHub open the profiles in a new tab; their pictures are drawn in code (LinkedIn's blue with an "in" monogram and
+  the handle; a contribution grid and the username). The ferries became giant origami paper boats with red flags,
+  bobbing as they cross. The hero's label and surname take the denim star's blues (the surname as the star
+  medallion's light-to-mid gradient): the star is the personal brand mark.
 - **Going live:** the "preview" label and `noindex` came off, the page took the loft's search and link-preview tags
   with a new rooftop preview image, and `/rooftop.html` redirects home. Tested under the production security headers:
   the import map is identical to the loft's, so the same CSP hash covers both pages.

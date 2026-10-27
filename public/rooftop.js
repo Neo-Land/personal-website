@@ -146,18 +146,40 @@ const river = new THREE.Mesh(new THREE.PlaneGeometry(5000, 2000), new THREE.Shad
     }`,
 }));
 river.rotation.x = -Math.PI / 2; river.position.set(0, -84, -900); scene.add(river);
-// ferries: cream hull + cabin, a fading wake behind, crossing slowly
+// paper boats: giant folded ones (hull + peaked sail, each fold its own shade of paper) with a red flag up top,
+// bobbing as they cross, a fading wake behind
 const wakeTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 8; const x = c.getContext('2d');
   const g = x.createLinearGradient(0, 0, 128, 0); g.addColorStop(0, 'rgba(255,240,215,0)'); g.addColorStop(1, 'rgba(255,240,215,.55)');
   x.fillStyle = g; x.fillRect(0, 0, 128, 8); return new THREE.CanvasTexture(c); })();
-const hullMat = new THREE.MeshBasicMaterial({ color: 0xe8d8c2 }), cabinMat = new THREE.MeshBasicMaterial({ color: 0xcfbfa8 });
+const boatGeo = (() => {
+  const L = 12, l = 7, H = 5, W = 3.4, S = 13;                         // half-lengths at the rim / keel, rim height, half-width, sail peak
+  const tris = [                                                       // [corners…], shade
+    [[-L, H, W], [L, H, W], [l, 0, 0]], [[-L, H, W], [l, 0, 0], [-l, 0, 0]],          // near side of the hull
+    [[L, H, -W], [-L, H, -W], [-l, 0, 0]], [[L, H, -W], [-l, 0, 0], [l, 0, 0]],       // far side
+    [[-L, H, W], [-l, 0, 0], [-L, H, -W]], [[L, H, -W], [l, 0, 0], [L, H, W]],         // the pointed ends
+    [[-6, H, W * 0.7], [6, H, W * 0.7], [0, S, 0]], [[6, H, -W * 0.7], [-6, H, -W * 0.7], [0, S, 0]],   // the sail's two folds
+  ];
+  const shades = [1, 1, 0.84, 0.84, 0.9, 0.9, 0.97, 0.8];
+  const pos = [], col = [];
+  tris.forEach((t, k) => { for (const p of t) { pos.push(...p); col.push(0.96 * shades[k], 0.93 * shades[k], 0.86 * shades[k]); } });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return g;
+})();
+const paperMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+const flagGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 17.5, 0), new THREE.Vector3(0, 15, 0), new THREE.Vector3(5, 16.4, 0)]);
+const flagMat = new THREE.MeshBasicMaterial({ color: 0xd8312a, side: THREE.DoubleSide }), poleMat = new THREE.MeshBasicMaterial({ color: 0x3a2a22 });
 const ferries = [[-200, -330, 6], [150, -560, -4.5], [-420, -780, 3.5]].map(([x, z, v]) => {
-  const f = new THREE.Group();
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(22, 2.4, 6), hullMat); hull.position.y = 1.2;
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(13, 2.6, 5), cabinMat); cabin.position.y = 3.6;
+  const f = new THREE.Group(); f.scale.setScalar(2.4);              // comically big for paper
+  const boat = new THREE.Group(); f.add(boat); f.userData.boat = boat;
+  const hull = new THREE.Mesh(boatGeo, paperMat);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5.5), poleMat); pole.position.y = 15.2;
+  const flag = new THREE.Mesh(flagGeo, flagMat); f.userData.flag = flag;
+  if (v < 0) boat.rotation.y = Math.PI;                               // the flag streams back, whichever way it sails
+  boat.add(hull, pole, flag);
   const wake = new THREE.Mesh(new THREE.PlaneGeometry(90, 7), new THREE.MeshBasicMaterial({ map: wakeTex, transparent: true, depthWrite: false }));
   wake.rotation.x = -Math.PI / 2; wake.position.set(-Math.sign(v) * 56, 0.1, 0); if (v < 0) wake.rotation.z = Math.PI;
-  f.add(hull, cabin, wake); f.position.set(x, -84, z); f.userData.v = v; scene.add(f); return f;
+  f.add(wake); f.position.set(x, -84, z); f.userData.v = v; f.userData.ph = Math.random() * 6; scene.add(f); return f;
 });
 // Manhattan's ground: a low slab the skyline stands on, a seawall facing us, piers, and low buildings along the
 // waterfront so the towers rise out of a city instead of the water. All instanced, coloured to sink into the haze.
@@ -287,9 +309,9 @@ const backTex = faceTex((x) => drawBack(x, CW, CH));                  // one bac
 const cardGeo = new THREE.PlaneGeometry(CARD, CARD * CH / CW);
 const cards = buttons.map((b, i) => {
   const card = new THREE.Group(), flip = new THREE.Group(); card.add(flip);
-  const info = { name: b.textContent, cat: b.dataset.cat, line: b.dataset.line, fit: b.dataset.fit, bg: b.dataset.bg, resume: b.dataset.d === 'resume', img: null };
+  const info = { name: b.textContent, cat: b.dataset.cat, line: b.dataset.line, fit: b.dataset.fit, bg: b.dataset.bg, resume: b.dataset.d === 'resume', link: !!b.dataset.href, art: b.dataset.art, img: null };
   const tex = faceTex((x) => drawFront(x, CW, CH, info, i));
-  const im = new Image(); im.onload = () => { info.img = im; tex.redraw(); }; im.src = b.dataset.img;   // the screenshot, drawn in once it's here
+  if (b.dataset.img) { const im = new Image(); im.onload = () => { info.img = im; tex.redraw(); }; im.src = b.dataset.img; }   // the screenshot, drawn in once it's here
   const front = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, fog: false }));
   const back = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: backTex, transparent: true, fog: false }));
   back.rotation.y = Math.PI;                                           // on the other side: what you see while it arrives
@@ -310,12 +332,19 @@ const faces = hits;                                                   // what th
 // The cards stay put; the one you point at grows toward you.
 const ring = new THREE.Object3D(); ring.position.copy(NEO).add(new THREE.Vector3(0, 0.3, -0.15)); ring.rotation.order = 'YXZ'; scene.add(ring);
 const slot = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
-// the fan: an arc of SWEEP centred over his head (from his right side to his left); FAN: how far each card leans with
-// the curve (1 = fully radial)
-const SWEEP = Math.PI * 0.78, A0 = (Math.PI - SWEEP) / 2, FAN = 0.33;
-const angle = (i) => A0 + SWEEP * i / (N - 1);
+// the fan: the three cards recruiters want (data-main: LinkedIn, Résumé, GitHub) on an arc over his head; the rest
+// (projects, About me) smaller, fanned down the left side. FAN: how far each card leans with the curve (1 = radial)
+const FAN = 0.33, SIDE = 0.66;                                      // SIDE: the left-hand cards' size
+const isMain = buttons.map((b) => 'main' in b.dataset);
+const order = (want) => buttons.map((b, i) => i).filter((i) => isMain[i] === want);
+const slotA = [], slotK = [];                                       // each card's angle on its curve, and its size
+order(true).forEach((i, k, a) => { slotA[i] = Math.PI * (0.31 + 0.38 * k / (a.length - 1)); slotK[i] = 1; });
+const sideK = [];                                                   // each side card's place in its little hand (0 = lowest)
+order(false).forEach((i, k, a) => { slotA[i] = Math.PI * (0.12 + 0.17 * k / Math.max(1, a.length - 1)); slotK[i] = SIDE; sideK[i] = k; });
+const angle = (i) => slotA[i];
 function arch(rx, ry) {
-  slot.forEach((s, i) => { const a = angle(i); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
+  slot.forEach((s, i) => { const a = angle(i), r = isMain[i] ? 1 : phone ? 1.2 : 1.36;   // the side cards sit further out, to the left,
+    s.position.set(-Math.cos(a) * rx * r, Math.sin(a) * ry * (isMain[i] ? 1 : 1.05), isMain[i] ? 0 : 0.04 * sideK[i]); });   // each a touch in front of the last, like a hand of cards
 }
 const HOVER = 1.15, LIFT = 0.1;                                              // hovered card: bigger, a little toward you
 const ringQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1);
@@ -395,6 +424,11 @@ document.getElementById('back').addEventListener('click', close);
 addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 // what a card does: the résumé downloads straight away; the rest open their info
 function act(i) {
+  if (buttons[i].dataset.href) {                                   // LinkedIn, GitHub: straight to the profile, in a new tab
+    skipReveal();
+    Object.assign(document.createElement('a'), { href: buttons[i].dataset.href, target: '_blank', rel: 'noopener' }).click();
+    return;
+  }
   if (buttons[i].dataset.d === 'resume') {
     skipReveal();
     Object.assign(document.createElement('a'), { href: 'Nehemias-Landaverde-Resume.pdf', download: 'Nehemias-Landaverde-Resume.pdf' }).click();
@@ -441,7 +475,12 @@ renderer.setAnimationLoop(() => {
   tmp.lerpVectors(hl, pose.focus.l, k); camera.lookAt(tmp);
   sky.position.copy(camera.position);
   sky.material.uniforms.uTime.value = river.material.uniforms.uTime.value = still ? 0 : t;
-  if (!still) for (const f of ferries) { f.position.x += f.userData.v * dt; if (Math.abs(f.position.x) > 900) f.position.x = -Math.sign(f.position.x) * 900; }
+  if (!still) for (const f of ferries) {
+    f.position.x += f.userData.v * dt; if (Math.abs(f.position.x) > 900) f.position.x = -Math.sign(f.position.x) * 900;
+    const ph = t * 1.3 + f.userData.ph, b = f.userData.boat;          // bob and rock; the flag flutters
+    b.position.y = Math.sin(ph) * 0.35; b.rotation.z = Math.sin(ph * 0.8) * 0.05; b.rotation.x = Math.sin(ph * 1.1) * 0.04;
+    f.userData.flag.scale.y = 1 + Math.sin(t * 7 + f.userData.ph) * 0.12;
+  }
   faceFill.position.copy(NEO).add(tmp.subVectors(camera.position, NEO).setY(0).normalize().multiplyScalar(2.5)).setY(NEO.y + 1.8);
   faceFill.target.position.set(NEO.x, NEO.y + 0.5, NEO.z); faceFill.intensity = FILL[0] + (FILL[1] - FILL[0]) * k;
   if (neo) {                                                      // standing: he turns from the city to face you
@@ -455,7 +494,7 @@ renderer.setAnimationLoop(() => {
     const u = m.userData, a = angle(i);
     slot[i].updateMatrixWorld(); slot[i].getWorldPosition(m.position);
     m.quaternion.copy(ringQ).multiply(rollQ.setFromAxisAngle(Z, (Math.PI / 2 - a) * FAN));   // fanned along the curve, gently so faces stay readable
-    hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion); hits[i].scale.setScalar(1.15 * cardScale);
+    hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion); hits[i].scale.setScalar(1.15 * cardScale * slotK[i]);
     const turn = easeIO(clamp01((revealT - POP_AT - i * POP_GAP - 0.3) / 0.6));   // arrives back-up, then turns face-up
     u.flip.rotation.y = Math.PI * (1 - turn);
     if (i === focused) {                                          // fly from its place on the curve to the spot up front, upright
@@ -468,7 +507,7 @@ renderer.setAnimationLoop(() => {
       m.position.addScaledVector(tmp.subVectors(camera.position, m.position).normalize(), LIFT * (u.s - 1) / (HOVER - 1));
     }
     const pop = easeOutBack(clamp01((revealT - POP_AT - i * POP_GAP) / POP_LEN));   // cards arrive one by one after the reveal
-    m.scale.setScalar(u.s * Math.max(pop, 0.0001) * (i === focused ? 1 : cardScale));   // fan cards follow the screen size; the opened one doesn't
+    m.scale.setScalar(u.s * Math.max(pop, 0.0001) * (i === focused ? 1 : cardScale * slotK[i]));   // fan cards follow the screen size; the opened one doesn't
     const op = focused >= 0 && i !== focused ? 1 - 0.7 * k : 1;
     for (const f of u.faces) f.material.opacity = op;
   });

@@ -9,6 +9,7 @@
 
 :root { --cream: #f5efe3; --ink: #f2ece0; --muted: rgba(242, 236, 224, .72); --gold: #d9b25f; --gold-soft: rgba(217, 178, 95, .38);
   --navy: #0e1524; --cyan: #8fc2ff;
+  --star-light: #c8d6f0; --star: #a9bbd6; --star-mid: #7d97c9;    /* the denim star: the personal brand colour */
   --serif: Fraunces, Georgia, serif; --sans: "Instrument Sans", system-ui, -apple-system, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #05070d; }
@@ -33,9 +34,11 @@ canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   text-shadow: 0 2px 18px rgba(30, 12, 6, .45); }
 .focused .intro { opacity: 0; pointer-events: none; }
 .intro h1 { margin: 0 0 12px; font: 600 clamp(32px, 3.4vw, 48px)/.98 var(--serif); letter-spacing: -.025em; }
-.intro h1 em { display: block; font-weight: 400; font-style: italic; color: var(--gold); letter-spacing: -.01em; }
+.intro h1 em { display: block; font-weight: 400; font-style: italic; letter-spacing: -.01em; padding-right: .08em;
+  color: var(--star); background: linear-gradient(170deg, var(--star-light) 15%, var(--star-mid) 95%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  text-shadow: none; filter: drop-shadow(0 2px 12px rgba(20, 30, 60, .35)); }   /* a text-shadow would show through the clipped gradient */
 .intro p { margin: 0; color: var(--muted); font-size: 16px; max-width: 30ch; }
-.intro .kicker { max-width: none; }
+.intro .kicker { max-width: none; color: var(--star-light) !important; }
 .kicker { margin: 0 0 14px !important; font: 500 11px/1.5 var(--mono) !important; letter-spacing: .16em; text-transform: uppercase; color: var(--gold) !important; }
 
 /* the buttons that mirror the 3D cards: keyboard / screen readers only */

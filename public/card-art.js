@@ -101,7 +101,30 @@ function wrap(x, text, maxW) {
   for (const w of words) { const t = lines[lines.length - 1] ? `${lines[lines.length - 1]} ${w}` : w; if (x.measureText(t).width > maxW && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = t; }
   return lines;
 }
-export function drawFront(x, W, H, { name, cat, line, img, fit = 'cover', bg = '#e9e1cf', resume }, seed) {
+// picture windows drawn in code for the link cards: LinkedIn (its blue, an "in" monogram, the handle) and GitHub
+// (a contribution grid and the username)
+function panel(x, art, ix, iy, iw, ih, r) {
+  if (art === 'linkedin') {
+    x.fillStyle = '#0a66c2'; x.fillRect(ix, iy, iw, ih);
+    const s = ih * 0.46, bx = ix + (iw - s) / 2, by = iy + ih * 0.16;
+    x.fillStyle = '#fff'; x.beginPath(); x.roundRect(bx, by, s, s, s * 0.16); x.fill();
+    x.fillStyle = '#0a66c2'; x.font = `700 ${s * 0.62}px "Instrument Sans", system-ui, sans-serif`; x.textAlign = 'center';
+    x.fillText('in', bx + s / 2, by + s * 0.76);
+    x.fillStyle = '#fff'; x.font = '500 17px "IBM Plex Mono", ui-monospace, monospace'; x.fillText('/in/nehemiaslandaverde', ix + iw / 2, iy + ih * 0.86);
+    x.textAlign = 'left';
+  } else if (art === 'github') {
+    x.fillStyle = '#0d1117'; x.fillRect(ix, iy, iw, ih);
+    const greens = ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'], cols = 18, rows = 7, g = 3;
+    const cs = (iw - 36 - g * (cols - 1)) / cols, gx = ix + 18, gy = iy + 22;
+    for (let c = 0; c < cols; c++) for (let rw = 0; rw < rows; rw++) {
+      const v = r(); x.fillStyle = greens[v < 0.35 ? 0 : v < 0.55 ? 1 : v < 0.75 ? 2 : v < 0.9 ? 3 : 4];
+      x.beginPath(); x.roundRect(gx + c * (cs + g), gy + rw * (cs + g), cs, cs, 2); x.fill();
+    }
+    x.fillStyle = '#e6edf3'; x.font = '500 19px "IBM Plex Mono", ui-monospace, monospace'; x.textAlign = 'center';
+    x.fillText('github.com/Neo-Land', ix + iw / 2, iy + ih * 0.86); x.textAlign = 'left';
+  }
+}
+export function drawFront(x, W, H, { name, cat, line, img, fit = 'cover', bg = '#e9e1cf', resume, link, art }, seed) {
   const r = rng(seed + 1);
   x.clearRect(0, 0, W, H);
   x.save();
@@ -111,6 +134,7 @@ export function drawFront(x, W, H, { name, cat, line, img, fit = 'cover', bg = '
   const ix = 24, iy = 60, iw = W - 48, ih = H * 0.5;                  // the picture window
   x.save(); x.beginPath(); x.roundRect(ix, iy, iw, ih, 10); x.clip();
   x.fillStyle = bg; x.fillRect(ix, iy, iw, ih);
+  if (art) panel(x, art, ix, iy, iw, ih, r);
   if (img) {
     if (fit === 'contain') {
       const s2 = Math.min(iw * 0.9 / img.width, ih * 0.94 / img.height);
@@ -126,7 +150,7 @@ export function drawFront(x, W, H, { name, cat, line, img, fit = 'cover', bg = '
   x.fillStyle = '#4a4f5c'; x.font = '400 22px "Instrument Sans", system-ui, sans-serif';
   wrap(x, line, W - 56).slice(0, 2).forEach((l, k) => x.fillText(l, 28, iy + ih + 96 + k * 29));
   x.fillStyle = resume ? '#a23a22' : NAVY; x.font = '500 18px "IBM Plex Mono", ui-monospace, monospace';
-  x.fillText(resume ? 'DOWNLOAD ↓' : 'OPEN →', 28, H - 32);
+  x.fillText(resume ? 'DOWNLOAD ↓' : link ? 'VISIT ↗' : 'OPEN →', 28, H - 32);
   wear(x, W, H, r);
   x.restore();
 }

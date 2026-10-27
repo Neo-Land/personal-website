@@ -30,7 +30,8 @@
 </script>
 </head>
 <body>
-<!-- The rooftop at golden hour: Neo on the ledge, Manhattan across the river, five cards fanned over him. Hover lifts
+<!-- The rooftop at golden hour: Neo on the ledge, Manhattan across the river; LinkedIn, Résumé and GitHub fanned over him,
+     the projects and About me smaller down the left. Hover lifts
      a card; click glides the camera to it (the résumé card downloads the PDF instead). Add ?perf for the readout.
      The card faces are drawn from the data-* below; the buttons are the keyboard / screen-reader version. -->
 <header class="bar">
@@ -48,10 +49,12 @@
 </div>
 
 <ul class="cards" id="cards">
+  <li><button type="button" class="card" data-main data-d="linkedin" data-href="https://www.linkedin.com/in/nehemiaslandaverde/" data-art="linkedin" data-cat="Profile · LinkedIn" data-line="Experience, ColorStack, and how to reach me.">LinkedIn</button></li>
+  <li><button type="button" class="card" data-main data-d="resume" data-cat="Résumé · PDF" data-img="resume-page.webp" data-fit="top" data-line="Click to download.">Résumé</button></li>
+  <li><button type="button" class="card" data-main data-d="github" data-href="https://github.com/Neo-Land" data-art="github" data-cat="Code · GitHub" data-line="This site's source and my other projects.">GitHub</button></li>
   <li><button type="button" class="card" data-d="hobitual" data-cat="Project · 3rd of 197" data-img="scene/hobitual.jpg" data-line="Hobbies → habits. I led the 3D characters.">Hobitual</button></li>
   <li><button type="button" class="card" data-d="gamify" data-cat="Project · Full-stack" data-img="scene/gamify.jpg" data-line="Hobbies as an RPG. 125+ tests, Postgres RLS.">Gamify.Life</button></li>
   <li><button type="button" class="card" data-d="loft" data-cat="Project · three.js" data-img="preview.jpg" data-fit="right" data-line="This scene: Blender bake + live three.js.">This website</button></li>
-  <li><button type="button" class="card" data-d="resume" data-cat="Résumé · PDF" data-img="resume-page.webp" data-fit="top" data-line="Click to download.">Résumé</button></li>
   <li><button type="button" class="card" data-d="about" data-cat="About · Contact" data-img="scene/neo-standing.webp" data-fit="contain" data-bg="#1b2744" data-line="Open to internships. Say hi.">About me</button></li>
 </ul>
 

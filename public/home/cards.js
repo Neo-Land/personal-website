@@ -11,7 +11,8 @@ import { drawBack, drawFront } from './card-art.js';
 export const buttons = [...document.querySelectorAll('#cards .card')];
 
 const CW = 400, CH = 560, CARD = 0.5;                               // canvas size and card width (m): poker-card proportions (5:7)
-const ARC = 180;                                                    // degrees of the arc: a half circle
+const ARC = 140;                                                    // degrees of the arc (less than a half circle: flatter)
+const GAP = 0.04;                                                   // space between neighbouring cards' bottom corners (m)
 const FAN = 1;                                                      // how far each card leans with the curve (1 = fully radial)
 const HOVER = 1.15, LIFT = 0.1;                                     // a hovered card: bigger, and a little toward you
 const CARD_LAG = 0.3;                                               // share of the camera move before the opened card sets off
@@ -51,7 +52,7 @@ const hits = cards.map((c, i) => { const h = new THREE.Mesh(cardGeo, hitMat); h.
 
 // ── the arc: an upright ring behind him facing the camera, one slot per card ──
 const ring = new THREE.Object3D(); ring.rotation.order = 'YXZ'; scene.add(ring);
-ring.position.copy(NEO).add(new THREE.Vector3(0, 0.42, -0.15));     // round him, the ends just clearing the headline
+ring.position.copy(NEO).add(new THREE.Vector3(0, 0.1, -0.15));      // centred low on him: the arc rises round him, ends clear of the headline
 const slots = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
 
 const isMain = buttons.map((b) => 'main' in b.dataset);
@@ -64,9 +65,11 @@ leftToRight.forEach((i, k) => {
 });
 
 let scale = 1;                                                      // card size for this screen
-// rx, ry: the arc's half-width / height (m); facing: the ring's yaw toward the camera
-export function layoutCards(rx, ry, facing, cardScale) {
-  slots.forEach((s, i) => s.position.set(-Math.cos(slotAngle[i]) * rx, Math.sin(slotAngle[i]) * ry, slotDepth[i]));
+// facing: the ring's yaw toward the camera. The circle's radius follows from the card size: just big enough that
+// neighbouring bottom edges sit GAP apart, so the cards never overlap
+export function layoutCards(facing, cardScale) {
+  const r = (CARD * cardScale + GAP) / THREE.MathUtils.degToRad(ARC / (cards.length - 1));
+  slots.forEach((s, i) => s.position.set(-Math.cos(slotAngle[i]) * r, Math.sin(slotAngle[i]) * r, slotDepth[i]));
   ring.rotation.set(-0.12, facing, -0.1);                           // top leaning back a touch; rolled so it reads level from the camera
   scale = cardScale;
 }

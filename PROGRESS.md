@@ -243,7 +243,12 @@ A second scene, built as a prototype on its own branch and promoted to the home 
   GitHub open the profiles in a new tab; their pictures are drawn in code (LinkedIn's blue with an "in" monogram and
   the handle; a contribution grid and the username). The ferries became giant origami paper boats with red flags,
   lit by the scene (flat-shaded folds, standard material) with a soft shadow on the water, bobbing gently in lanes
-  mid-river, clear of the piers; the flags stay fixed. The hero's label and surname take the denim star's deeper blues (the surname a
+  mid-river, clear of the piers; the flags stay fixed. Later: smaller (1.5×), the pole and flag at the stern.
+  Card faces were simplified to a picture or emblem, the title and the action: LinkedIn's "in" monogram and
+  GitHub's mark (Simple Icons, CC0) in cream on the card navy; This website: the denim star ringed by NEHEMIAS over the
+  top and LANDAVERDE beneath (letters set along the circle); About me: a photo with its edges faded into the card
+  (cropped, metadata stripped, 33 KB). Cards are 86 % of their old size on a wider, taller arc, each a hair nearer the
+  camera the closer it is to the top, so overlapping cards no longer flicker (they used to share one plane). The hero's label and surname take the denim star's deeper blues (the surname a
   mid-to-deep gradient): the star is the personal brand mark.
 - **Going live:** the "preview" label and `noindex` came off, the page took the loft's search and link-preview tags
   with a new rooftop preview image, and `/rooftop.html` redirects home. Tested under the production security headers:

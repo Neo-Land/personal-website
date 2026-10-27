@@ -172,13 +172,13 @@ const paperMat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THRE
 const shadowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
   const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(30,18,12,.55)'); g.addColorStop(1, 'rgba(30,18,12,0)');
   x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
-const flagGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 17.5, 0), new THREE.Vector3(0, 15, 0), new THREE.Vector3(5, 16.4, 0)]);
+const flagGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-9.5, 11, 0), new THREE.Vector3(-9.5, 8.6, 0), new THREE.Vector3(-14, 9.9, 0)]);   // at the stern, streaming back
 const flagMat = new THREE.MeshStandardMaterial({ color: 0xd8312a, side: THREE.DoubleSide, roughness: 0.8 }), poleMat = new THREE.MeshStandardMaterial({ color: 0x3a2a22 });
 const ferries = [[-200, -330, 6], [150, -440, -4.5], [-420, -540, 3.5]].map(([x, z, v]) => {   // lanes mid-river, clear of the piers
-  const f = new THREE.Group(); f.scale.setScalar(2.4);              // comically big for paper
+  const f = new THREE.Group(); f.scale.setScalar(1.5);              // comically big for paper
   const boat = new THREE.Group(); f.add(boat); f.userData.boat = boat;
   const hull = new THREE.Mesh(boatGeo, paperMat);
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5.5), poleMat); pole.position.y = 15.2;
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 7), poleMat); pole.position.set(-9.5, 7.5, 0);   // up from the stern
   const flag = new THREE.Mesh(flagGeo, flagMat);
   if (v < 0) boat.rotation.y = Math.PI;                               // the flag streams back, whichever way it sails
   boat.add(hull, pole, flag);
@@ -316,7 +316,7 @@ const backTex = faceTex((x) => drawBack(x, CW, CH));                  // one bac
 const cardGeo = new THREE.PlaneGeometry(CARD, CARD * CH / CW);
 const cards = buttons.map((b, i) => {
   const card = new THREE.Group(), flip = new THREE.Group(); card.add(flip);
-  const info = { name: b.textContent, cat: b.dataset.cat, line: b.dataset.line, fit: b.dataset.fit, bg: b.dataset.bg, resume: b.dataset.d === 'resume', link: !!b.dataset.href, art: b.dataset.art, img: null };
+  const info = { name: b.textContent, fit: b.dataset.fit, resume: b.dataset.d === 'resume', link: !!b.dataset.href, art: b.dataset.art, fade: 'fade' in b.dataset, img: null };
   const tex = faceTex((x) => drawFront(x, CW, CH, info, i));
   if (b.dataset.img) { const im = new Image(); im.onload = () => { info.img = im; tex.redraw(); }; im.src = b.dataset.img; }   // the screenshot, drawn in once it's here
   const front = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, fog: false }));
@@ -347,11 +347,12 @@ const ARC = 160;
 const isMain = buttons.map((b) => 'main' in b.dataset);
 const rest = buttons.map((b, i) => i).filter((i) => !isMain[i]), half = Math.ceil(rest.length / 2);
 const around = [...rest.slice(0, half), ...buttons.map((b, i) => i).filter((i) => isMain[i]), ...rest.slice(half)];   // left → right
-const slotA = [];                                                   // each card's angle on the arc (0 = far left, π/2 = top)
-around.forEach((i, k) => { slotA[i] = Math.PI / 2 - THREE.MathUtils.degToRad(ARC / 2) + THREE.MathUtils.degToRad(ARC) * k / (around.length - 1); });
+const slotA = [], slotZ = [];                                      // each card's angle on the arc (0 = far left, π/2 = top), depth
+around.forEach((i, k) => { slotA[i] = Math.PI / 2 - THREE.MathUtils.degToRad(ARC / 2) + THREE.MathUtils.degToRad(ARC) * k / (around.length - 1);
+  slotZ[i] = -0.015 * Math.abs(k - (around.length - 1) / 2); });   // the top card nearest: overlapping cards never share a plane (no flicker)
 const angle = (i) => slotA[i];
 function arch(rx, ry) {
-  slot.forEach((s, i) => { const a = angle(i); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
+  slot.forEach((s, i) => { const a = angle(i); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, slotZ[i]); });
 }
 const HOVER = 1.15, LIFT = 0.1;                                              // hovered card: bigger, a little toward you
 const ringQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1);
@@ -375,8 +376,8 @@ function size() {
   // screens (desktop is already at the cap)
   const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(pose.home.fov / 2)) * camera.aspect);
   const viewW = 2 * pose.home.p.distanceTo(NEO) * Math.tan(hfov / 2);
-  const rx = Math.min(1.25, viewW * 0.26); arch(rx, rx * 0.88);
-  cardScale = Math.min(1, (viewW * 0.125) / CARD);                     // narrower than the gaps, so cards never overlap
+  const rx = Math.min(1.4, viewW * 0.29); arch(rx, rx * 1.02);         // spread wide, arched a little taller than wide
+  cardScale = Math.min(0.86, (viewW * 0.11) / CARD);                     // narrower than the gaps, so cards never overlap
   // the reveal starts higher, further back and looking up toward the sun over the skyline, then cranes down to him
   pose.start.p.copy(pose.home.p).add(phone ? new THREE.Vector3(2.5, 3.5, 6) : new THREE.Vector3(4, 3.2, 7));
   pose.start.l.copy(SUN).multiplyScalar(700).add(new THREE.Vector3(0, 30, 0)); pose.start.fov = phone ? 66 : 48;

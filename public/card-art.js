@@ -1,6 +1,6 @@
 // Card faces for the rooftop scene, drawn in code (no image downloads).
 // drawBack: one original, aged playing-card back (cream rim, worn navy, gold scrollwork, the blue star medallion).
-// drawFront: aged cream card with a real screenshot, the name, one line of impact and what clicking does.
+// drawFront: aged cream card: a picture or an emblem, the name, and what clicking does.
 
 const INK = '#2a2f3a', GOLD = '#d9b25f', CREAM = '#f5efe3', NAVY = '#1b2744';
 
@@ -96,59 +96,64 @@ export function drawBack(x, W, H) {
 }
 
 // ── front: the real thing — a screenshot, the name, one line of impact, what clicking does ──
-function wrap(x, text, maxW) {
-  const words = text.split(' '), lines = [''];
-  for (const w of words) { const t = lines[lines.length - 1] ? `${lines[lines.length - 1]} ${w}` : w; if (x.measureText(t).width > maxW && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = t; }
-  return lines;
+// picture windows drawn in code, in the cards' own navy, cream and gold: LinkedIn's "in" monogram, GitHub's mark
+// (the path from Simple Icons, CC0; 24 × 24), and this site's denim star ringed by the name
+const GITHUB = new Path2D('M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12');
+function arcText(x, text, cx, cy, r, top) {                         // letters round a circle: over the top, or under it
+  const ws = [...text].map((c) => x.measureText(c).width), total = ws.reduce((a, b) => a + b, 0) / r;
+  let a = top ? -Math.PI / 2 - total / 2 : Math.PI / 2 + total / 2;
+  [...text].forEach((c, k) => {
+    const step = ws[k] / r, m = a + (top ? step / 2 : -step / 2);
+    x.save(); x.translate(cx + Math.cos(m) * r, cy + Math.sin(m) * r); x.rotate(top ? m + Math.PI / 2 : m - Math.PI / 2);
+    x.fillText(c, -ws[k] / 2, 0); x.restore();
+    a += top ? step : -step;
+  });
 }
-// picture windows drawn in code for the link cards: LinkedIn (its blue, an "in" monogram, the handle) and GitHub
-// (a contribution grid and the username)
-function panel(x, art, ix, iy, iw, ih, r) {
+function panel(x, art, ix, iy, iw, ih, img) {
+  x.fillStyle = NAVY; x.fillRect(ix, iy, iw, ih);
+  x.strokeStyle = 'rgba(217,178,95,.45)'; x.lineWidth = 1.5; x.beginPath(); x.roundRect(ix + 10, iy + 10, iw - 20, ih - 20, 8); x.stroke();
+  const cx = ix + iw / 2, cy = iy + ih / 2;
   if (art === 'linkedin') {
-    x.fillStyle = '#0a66c2'; x.fillRect(ix, iy, iw, ih);
-    const s = ih * 0.46, bx = ix + (iw - s) / 2, by = iy + ih * 0.16;
-    x.fillStyle = '#fff'; x.beginPath(); x.roundRect(bx, by, s, s, s * 0.16); x.fill();
-    x.fillStyle = '#0a66c2'; x.font = `700 ${s * 0.62}px "Instrument Sans", system-ui, sans-serif`; x.textAlign = 'center';
-    x.fillText('in', bx + s / 2, by + s * 0.76);
-    x.fillStyle = '#fff'; x.font = '500 17px "IBM Plex Mono", ui-monospace, monospace'; x.fillText('/in/nehemiaslandaverde', ix + iw / 2, iy + ih * 0.86);
-    x.textAlign = 'left';
+    const s = ih * 0.46;
+    x.fillStyle = CREAM; x.beginPath(); x.roundRect(cx - s / 2, cy - s / 2, s, s, s * 0.17); x.fill();
+    x.strokeStyle = GOLD; x.lineWidth = 3; x.stroke();
+    x.fillStyle = NAVY; x.font = `700 ${s * 0.64}px "Instrument Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('in', cx, cy + s * 0.04); x.textAlign = 'left'; x.textBaseline = 'alphabetic';
   } else if (art === 'github') {
-    x.fillStyle = '#0d1117'; x.fillRect(ix, iy, iw, ih);
-    const greens = ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353'], cols = 18, rows = 7, g = 3;
-    const cs = (iw - 36 - g * (cols - 1)) / cols, gx = ix + 18, gy = iy + 22;
-    for (let c = 0; c < cols; c++) for (let rw = 0; rw < rows; rw++) {
-      const v = r(); x.fillStyle = greens[v < 0.35 ? 0 : v < 0.55 ? 1 : v < 0.75 ? 2 : v < 0.9 ? 3 : 4];
-      x.beginPath(); x.roundRect(gx + c * (cs + g), gy + rw * (cs + g), cs, cs, 2); x.fill();
-    }
-    x.fillStyle = '#e6edf3'; x.font = '500 19px "IBM Plex Mono", ui-monospace, monospace'; x.textAlign = 'center';
-    x.fillText('github.com/Neo-Land', ix + iw / 2, iy + ih * 0.86); x.textAlign = 'left';
+    const s = ih * 0.5 / 24;
+    x.save(); x.translate(cx - 12 * s, cy - 12 * s); x.scale(s, s); x.fillStyle = CREAM; x.fill(GITHUB); x.restore();
+  } else if (art === 'website') {
+    const R = ih * 0.36;
+    if (img) { const s = R * 1.15; x.drawImage(img, cx - s / 2, cy - s / 2, s, s); }
+    x.fillStyle = GOLD; x.font = '600 26px Fraunces, Georgia, serif'; x.textBaseline = 'middle';
+    if ('letterSpacing' in x) x.letterSpacing = '3px';
+    arcText(x, 'NEHEMIAS', cx, cy, R, true); arcText(x, 'LANDAVERDE', cx, cy, R, false);
+    if ('letterSpacing' in x) x.letterSpacing = '0px';
+    x.textBaseline = 'alphabetic';
   }
 }
-export function drawFront(x, W, H, { name, cat, line, img, fit = 'cover', bg = '#e9e1cf', resume, link, art }, seed) {
+// simple faces: the picture (or emblem), the title, and what clicking does
+export function drawFront(x, W, H, { name, img, fit = 'cover', resume, link, art, fade }, seed) {
   const r = rng(seed + 1);
   x.clearRect(0, 0, W, H);
   x.save();
   x.beginPath(); x.roundRect(0, 0, W, H, 24); x.clip();
   x.fillStyle = CREAM; x.fillRect(0, 0, W, H);
-  x.fillStyle = '#9a6b1f'; x.font = '500 17px "IBM Plex Mono", ui-monospace, monospace'; x.fillText(cat.toUpperCase(), 28, 44);
-  const ix = 24, iy = 60, iw = W - 48, ih = H * 0.5;                  // the picture window
+  const ix = 24, iy = 26, iw = W - 48, ih = H * 0.68;                 // the picture window
   x.save(); x.beginPath(); x.roundRect(ix, iy, iw, ih, 10); x.clip();
-  x.fillStyle = bg; x.fillRect(ix, iy, iw, ih);
-  if (art) panel(x, art, ix, iy, iw, ih, r);
-  if (img) {
-    if (fit === 'contain') {
-      const s2 = Math.min(iw * 0.9 / img.width, ih * 0.94 / img.height);
-      x.drawImage(img, ix + (iw - img.width * s2) / 2, iy + (ih - img.height * s2) / 2, img.width * s2, img.height * s2);
-    } else {
-      const s2 = Math.max(iw / img.width, ih / img.height), w = img.width * s2, h = img.height * s2;
-      x.drawImage(img, fit === 'right' ? ix + (iw - w) * 0.85 : ix + (iw - w) / 2, fit === 'top' ? iy : iy + (ih - h) / 2, w, h);
-    }
+  x.fillStyle = '#e9e1cf'; x.fillRect(ix, iy, iw, ih);
+  if (art) panel(x, art, ix, iy, iw, ih, img);
+  else if (img) {
+    const s2 = Math.max(iw / img.width, ih / img.height), w = img.width * s2, h = img.height * s2;
+    x.drawImage(img, fit === 'right' ? ix + (iw - w) * 0.85 : ix + (iw - w) / 2, fit === 'top' ? iy : iy + (ih - h) / 2, w, h);
+  }
+  if (fade) for (const [x0, y0, x1, y1] of [[ix, 0, ix + 46, 0], [ix + iw, 0, ix + iw - 46, 0], [0, iy, 0, iy + 46], [0, iy + ih, 0, iy + ih - 70]]) {
+    const g = x.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, CREAM); g.addColorStop(1, 'rgba(245,239,227,0)');   // edges melt into the card
+    x.fillStyle = g; x.fillRect(ix, iy, iw, ih);
   }
   x.restore();
-  x.strokeStyle = 'rgba(42,47,58,.35)'; x.lineWidth = 2; x.beginPath(); x.roundRect(ix, iy, iw, ih, 10); x.stroke();
-  x.fillStyle = INK; x.font = '600 44px Fraunces, Georgia, serif'; x.fillText(name, 28, iy + ih + 58);
-  x.fillStyle = '#4a4f5c'; x.font = '400 22px "Instrument Sans", system-ui, sans-serif';
-  wrap(x, line, W - 56).slice(0, 2).forEach((l, k) => x.fillText(l, 28, iy + ih + 96 + k * 29));
+  if (!fade) { x.strokeStyle = 'rgba(42,47,58,.35)'; x.lineWidth = 2; x.beginPath(); x.roundRect(ix, iy, iw, ih, 10); x.stroke(); }
+  x.fillStyle = INK; x.font = '600 46px Fraunces, Georgia, serif'; x.fillText(name, 28, iy + ih + 66);
   x.fillStyle = resume ? '#a23a22' : NAVY; x.font = '500 18px "IBM Plex Mono", ui-monospace, monospace';
   x.fillText(resume ? 'DOWNLOAD ↓' : link ? 'VISIT ↗' : 'OPEN →', 28, H - 32);
   wear(x, W, H, r);

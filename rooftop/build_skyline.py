@@ -127,12 +127,34 @@ def park432(x, z):                                                 # 426 m: the 
     landmark('432', x, z, 30)
     loft([rect(x, z, 28, 28, G), rect(x, z, 28, 28, G + 426)])
 
+def central_park_tower(x, z):                                       # 472 m: a tall slab with a stepped cantilever, glass crown
+    landmark('cpt', x, z, 40)
+    stack(x, z, [(60, 54, 40), (300, 36, 27), (440, 32, 24), (472, 28, 20)])
+
+def w57_111(x, z):                                                  # 111 West 57th, 435 m: the world's slimmest, stepping in to a point
+    landmark('111w57', x, z, 30)
+    loft([rect(x, z, 18, 60, G), rect(x, z, 18, 60, G + 300), rect(x, z, 14, 30, G + 400), rect(x, z, 6, 8, G + 435)])
+
+def one57(x, z):                                                    # 306 m: a wide slab with a curved, stepped-down top
+    landmark('one57', x, z, 40)
+    stack(x, z, [(250, 58, 30), (280, 48, 26), (306, 34, 22)])
+
+def cps220(x, z):                                                   # 220 Central Park South, 290 m: limestone, a crowned top
+    landmark('220cps', x, z, 35)
+    stack(x, z, [(250, 40, 30), (275, 32, 24), (290, 22, 18)])
+
+def w53_53(x, z):                                                   # 53 West 53rd, 320 m: tapering to a sharp spire
+    landmark('53w53', x, z, 35)
+    loft([rect(x, z, 34, 26, G), rect(x, z, 26, 20, G + 230), rect(x, z, 2, 2, G + 320)])
+
 for build, lat, lon in ((the_edge, 40.7537, -74.0012), (hy35, 40.7545, -74.0027), (hy50, 40.7531, -73.9996),
                         (spiral, 40.7543, -73.9990), (empire_state, 40.7484, -73.9857), (one_vanderbilt, 40.7530, -73.9788),
-                        (chrysler, 40.7516, -73.9755), (jpmorgan, 40.7556, -73.9752), (park432, 40.7616, -73.9719)):
+                        (chrysler, 40.7516, -73.9755), (jpmorgan, 40.7556, -73.9752), (park432, 40.7616, -73.9719),
+                        (central_park_tower, 40.7663, -73.9810), (w57_111, 40.7646, -73.9775), (one57, 40.7653, -73.9792),
+                        (cps220, 40.7672, -73.9808), (w53_53, 40.7614, -73.9774)):
     build(*real(lat, lon))
 
-# ── filler: Manhattan's footprint between 14th and 65th St, densest in Midtown and at Hudson Yards; real heights ──
+# ── filler: Manhattan's footprint between 14th and ~125th St (Central Park left open), densest in Midtown and at Hudson Yards; real heights ──
 def tower(x, z, w, d, h):
     y = G
     for step in range(random.choice((1, 1, 2, 3))):
@@ -142,12 +164,20 @@ def tower(x, z, w, d, h):
         if y - G > h: break
     if h > 170 and random.random() < 0.4:
         loft([rect(x, z, w * 0.9, d * 0.9, y), rect(x, z, 1, 1, y + w * 0.7)])
-west = lambda lat: -74.0090 + (lat - 40.741) * 0.53                 # the Hudson shore (West Side Highway)
-east = lambda lat: -73.9740 + (lat - 40.730) * 0.50                 # the East River shore (FDR Drive)
+west = lambda lat: -74.0090 + (lat - 40.741) * 0.53 if lat < 40.771 else -73.9931 + (lat - 40.771) * 0.68   # the Hudson shore
+east = lambda lat: -73.9740 + (lat - 40.730) * 0.50 if lat < 40.785 else -73.9465 + (lat - 40.785) * 0.30   # East/Harlem River
+GA = (math.cos(math.radians(GRID)), math.sin(math.radians(GRID)))   # along the avenues, in real (x, z)
+def in_park(lat, lon):                                              # Central Park: 59th–110th St, Fifth to Eighth Ave
+    x, z = real(lat, lon); a = x * GA[0] + z * GA[1]; b = -x * GA[1] + z * GA[0]
+    (x0, z0), (x1, z1) = real(40.7681, -73.9819), real(40.7969, -73.9493)   # its southwest and northeast corners
+    a0, b0, a1, b1 = x0 * GA[0] + z0 * GA[1], -x0 * GA[1] + z0 * GA[0], x1 * GA[0] + z1 * GA[1], -x1 * GA[1] + z1 * GA[0]
+    return min(a0, a1) < a < max(a0, a1) and min(b0, b1) < b < max(b0, b1)
 bump = lambda lat, lon, la, lo, r: math.exp(-(((lat - la) * 111000) ** 2 + ((lon - lo) * 84330) ** 2) / r ** 2)
-for i in range(500):
-    lat = random.uniform(40.735, 40.775); lon = random.uniform(west(lat) + 0.0015, east(lat) - 0.0015)
-    core = bump(lat, lon, 40.7549, -73.9840, 1100) + 0.8 * bump(lat, lon, 40.7535, -74.0000, 350)
+for i in range(750):                                                # 14th St up to ~125th St
+    lat = random.uniform(40.735, 40.815); lon = random.uniform(west(lat) + 0.0015, east(lat) - 0.0015)
+    if in_park(lat, lon): continue
+    core = bump(lat, lon, 40.7549, -73.9840, 1100) + 0.8 * bump(lat, lon, 40.7535, -74.0000, 350) \
+           + 0.25 * bump(lat, lon, 40.7850, -73.9780, 1500)              # the Upper West/East Sides: mostly mid-rise
     h = random.uniform(20, 70) + core * random.uniform(40, 230) * (1 if random.random() < 0.55 else 0.45)
     w, d = random.uniform(22, 55), random.uniform(22, 55)
     x, z = real(lat, lon)

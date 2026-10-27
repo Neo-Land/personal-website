@@ -174,18 +174,18 @@ const haze = (color, fade = 0) => new THREE.ShaderMaterial({        // fade: a f
   fragmentShader: `uniform vec3 uC, uFogC; uniform float uFogD, uFade; varying float vD;
     void main(){ gl_FragColor = vec4(mix(uC, uFogC, max(uFade, 1. - exp(-pow(vD * uFogD, 2.)))), 1.); }`,
 });
-const land = new THREE.Mesh(new THREE.BoxGeometry(2500, 4, 1400), haze(0x3a2e30));
-land.position.set(SKY_X, -84, -1490); scene.add(land);           // top at y -82, front (the seawall) at z -790, back past One WTC
+const land = new THREE.Mesh(new THREE.BoxGeometry(4800, 4, 1400), haze(0x3a2e30));   // wide: Upper Manhattan runs off to the left
+land.position.set(SKY_X - 1150, -84, -1490); scene.add(land);           // top at y -82, front (the seawall) at z -790, back past One WTC
 const lowMat = haze(0x2c2428);
-const PIERS = 34, piers = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), lowMat, PIERS);
+const PIERS = 60, piers = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), lowMat, PIERS);
 for (let i = 0; i < PIERS; i++) {
-  const x = SKY_X - 1200 + i * 72 + (Math.random() - 0.5) * 20, len = 40 + Math.random() * 50;
+  const x = SKY_X - 3100 + i * 72 + (Math.random() - 0.5) * 20, len = 40 + Math.random() * 50;
   piers.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3(x, -83, -790 + len / 2), new THREE.Quaternion(), new THREE.Vector3(10 + Math.random() * 10, 2.5, len)));
 }
 scene.add(piers);
-const LOW = 260, low = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), lowMat, LOW);
+const LOW = 460, low = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), lowMat, LOW);
 for (let i = 0; i < LOW; i++) {
-  const h = 6 + Math.random() * 28, x = SKY_X - 1220 + Math.random() * 2440, z = -800 - Math.random() * 90;
+  const h = 6 + Math.random() * 28, x = SKY_X - 3200 + Math.random() * 4440, z = -800 - Math.random() * 90;
   low.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3(x, -82 + h / 2, z), new THREE.Quaternion(), new THREE.Vector3(14 + Math.random() * 24, h, 12 + Math.random() * 20)));
 }
 scene.add(low);

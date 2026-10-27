@@ -232,6 +232,10 @@ A second scene, built as a prototype on its own branch and promoted to the home 
   lat/long. At the city's scale they'd sit past the camera's 3 km draw distance, so each building beyond 2.6 km is
   pulled toward the eye and shrunk by the same factor (same direction and apparent size), its base dropped back to the
   street. Drawn as silhouettes only, at least 62 % sunk into the haze, so they add depth without competing. 208 KB.
+- **Filling the left (Oct 27):** on a full-screen laptop the view reaches further north than 65th St, so it was
+  empty. The map now runs to ~125th St (Upper West/East Side, Harlem; Central Park's rectangle left open) and adds
+  Billionaires' Row: Central Park Tower, 111 West 57th, One57, 220 Central Park South, 53 West 53rd. The ground slab,
+  waterfront and piers were widened to the left to carry it. `skyline.glb` 226 KB.
 - **Going live:** the "preview" label and `noindex` came off, the page took the loft's search and link-preview tags
   with a new rooftop preview image, and `/rooftop.html` redirects home. Tested under the production security headers:
   the import map is identical to the loft's, so the same CSP hash covers both pages.

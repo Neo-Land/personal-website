@@ -12,6 +12,7 @@
 //   neo.js       Neo: loading, standing up and sitting down
 //   cards.js     the cards: meshes, layout, hover and fly-in
 //   card-art.js  drawing the card faces
+//   coin.js      the easter egg: the hackathon coin by the vent pipe (or on the ledge)
 // Debugging: ?perf shows fps / draw calls / memory; ?look=off renders without the cinematic pass.
 import * as THREE from 'three';
 import { renderer, scene, camera, still, params, SUN, NEO, ease, easeIO, clamp01 } from './stage.js';
@@ -21,8 +22,10 @@ import { updateRiver } from './river.js';
 import { cityReady } from './city.js';
 import { neoReady, stand, updateNeo } from './neo.js';
 import { buttons, cards, layoutCards, pickCard, updateCards, CARD_WIDTH } from './cards.js';
+import { pickCoin, openCoin, closeCoin, coinOpen, updateCoin } from './coin.js';
 
 const info = document.getElementById('info'), infoBody = document.getElementById('d-body'), backButton = document.getElementById('back');
+const medalButton = document.getElementById('medal');            // the coin's keyboard / screen-reader version
 
 // ── camera poses: start (the reveal begins here), home (Neo centred, the arc round him), focus (Neo left, card up front,
 // info on the right); set per screen shape in size() ──
@@ -78,19 +81,31 @@ let t01 = 0, dir = 0;                                               // camera mo
 const flyFrom = new THREE.Vector3();
 function open(i) {
   skipReveal();
-  if (focused >= 0 && focused !== i) { focused = i; fillInfo(i); return; }   // already up: just swap the card
+  if (focused >= 0 && focused !== i) { focused = i; fillInfo(buttons[i].dataset.d); return; }   // already up: just swap the card
   focused = i; dir = 1; flyFrom.copy(cards[i].position);
-  fillInfo(i); stand(true);
+  fillInfo(buttons[i].dataset.d); stand(true);
   document.body.classList.add('focused');
   info.hidden = false;
   setTimeout(() => backButton.focus({ preventScroll: true }), 50);
 }
-function fillInfo(i) {                                              // the card's <template id="d-…"> from index.html
-  infoBody.replaceChildren(document.getElementById(`d-${buttons[i].dataset.d}`).content.cloneNode(true));
+function fillInfo(id) {                                             // the panel's <template id="d-…"> from index.html
+  infoBody.replaceChildren(document.getElementById(`d-${id}`).content.cloneNode(true));
   const mail = infoBody.querySelector('[data-mail]');
   if (mail) mail.href = `mailto:${['nehe.landav', 'gmail.com'].join('@')}`;   // assembled here, so it's not in the page for harvesters
 }
+function openMedal() {                                              // the coin floats up; the camera stays put
+  skipReveal();
+  if (focused >= 0 || coinOpen()) return;
+  openCoin(); fillInfo('medal');
+  document.body.classList.add('focused');
+  info.hidden = false;
+  setTimeout(() => backButton.focus({ preventScroll: true }), 50);
+}
 function close() {
+  if (coinOpen()) {
+    closeCoin(); document.body.classList.remove('focused'); info.hidden = true;
+    medalButton.focus({ preventScroll: true }); return;
+  }
   if (focused < 0 || dir === -1) return;
   dir = -1; stand(false);
   document.body.classList.remove('focused');
@@ -113,11 +128,19 @@ buttons.forEach((b, i) => {
   b.addEventListener('focus', () => (keyboard = i)); b.addEventListener('blur', () => (keyboard = -1));
 });
 const pick = (e) => (revealT < POP_AT ? -1 : pickCard(e));          // no clicking cards before they've arrived
+const onCoin = (e) => revealT >= POP_AT && focused < 0 && !coinOpen() && pickCoin(e);
+let coinHover = false;
 renderer.domElement.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse') return;
-  hovered = pick(e); renderer.domElement.style.cursor = hovered >= 0 ? 'pointer' : '';
+  hovered = pick(e); coinHover = hovered < 0 && onCoin(e);
+  renderer.domElement.style.cursor = hovered >= 0 || coinHover ? 'pointer' : '';
 });
-renderer.domElement.addEventListener('click', (e) => { const i = pick(e); if (i >= 0) act(i); else close(); });
+renderer.domElement.addEventListener('click', (e) => {
+  if (coinOpen()) { close(); return; }                              // any click puts the coin back
+  const i = pick(e);
+  if (i >= 0) act(i); else if (onCoin(e)) openMedal(); else close();
+});
+medalButton.addEventListener('click', openMedal);
 const drift = new THREE.Vector2(), driftNow = new THREE.Vector2();  // the camera drifts a little with the mouse
 addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') drift.set(e.clientX / innerWidth - 0.5, e.clientY / innerHeight - 0.5); });
 
@@ -172,6 +195,7 @@ renderer.setAnimationLoop(() => {
   updateNeo(dt, k, sitYaw, Math.atan2(pose.focus.p.x - NEO.x, pose.focus.p.z - NEO.z));   // standing, he turns to face you
   updateCards(dt, { revealT, popAt: POP_AT, highlighted: focused < 0 ? (hovered >= 0 ? hovered : keyboard) : -1,
     focused, flyFrom, dir, t01, k, spot: focusSpot(), phone });
+  updateCoin(dt, t, phone, coinHover);
   renderWithLook(dt, t, k, phone);
   if (PERF) showPerf(dt);
 });

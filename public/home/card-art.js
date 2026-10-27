@@ -134,7 +134,7 @@ export function drawFront(x, W, H, { name, img, fit = 'cover', resume, link, art
   x.save();
   x.beginPath(); x.roundRect(0, 0, W, H, 24); x.clip();
   x.fillStyle = CREAM; x.fillRect(0, 0, W, H);
-  const ix = 24, iy = 26, iw = W - 48, ih = H * 0.68;                 // the picture window
+  const ix = 24, iy = 26, iw = W - 48, ih = H * 0.65;                 // the picture window
   x.save(); x.beginPath(); x.roundRect(ix, iy, iw, ih, 10); x.clip();
   x.fillStyle = '#e9e1cf'; x.fillRect(ix, iy, iw, ih);
   if (art) panel(x, art, ix, iy, iw, ih, img);
@@ -148,11 +148,14 @@ export function drawFront(x, W, H, { name, img, fit = 'cover', resume, link, art
   }
   x.restore();
   if (!fade && !art) { x.strokeStyle = 'rgba(42,47,58,.35)'; x.lineWidth = 2; x.beginPath(); x.roundRect(ix, iy, iw, ih, 10); x.stroke(); }
-  x.fillStyle = INK; x.font = '600 46px Fraunces, Georgia, serif'; x.fillText(name, 28, iy + ih + 66);
-  x.fillStyle = resume ? '#a23a22' : NAVY; x.font = '500 18px "IBM Plex Mono", ui-monospace, monospace';
-  x.fillText(resume ? 'DOWNLOAD ↓' : link ? 'VISIT ↗' : 'OPEN →', 28, H - 32);
   x.strokeStyle = denim(x, W / 2, H / 2, H / 2); x.lineWidth = 2.5;   // a denim line tracing just inside the edge
   x.beginPath(); x.roundRect(11, 11, W - 22, H - 22, 15); x.stroke();
   wear(x, W, H, r);
+  // the text goes on after the wear, so it stays dark and crisp: big enough to read on a phone, shrunk only to fit
+  x.fillStyle = '#12151c'; x.font = '600 64px Fraunces, Georgia, serif';
+  const shrink = Math.min(1, (W - 56) / x.measureText(name).width);
+  x.font = `600 ${Math.floor(64 * shrink)}px Fraunces, Georgia, serif`; x.fillText(name, 28, iy + ih + 74);
+  x.fillStyle = resume ? '#8a2a14' : NAVY; x.font = '500 22px "IBM Plex Mono", ui-monospace, monospace';
+  x.fillText(resume ? 'DOWNLOAD ↓' : link ? 'VISIT ↗' : 'OPEN →', 28, H - 34);
   x.restore();
 }

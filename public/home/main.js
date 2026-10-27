@@ -34,8 +34,8 @@ function size() {
   renderer.setSize(innerWidth, innerHeight, false);
   resizeLook();
   camera.aspect = innerWidth / innerHeight; phone = camera.aspect < 0.8;
-  if (phone) {                                                      // portrait: Neo and his cards left of centre, the city to the right
-    pose.home.p.set(2.0, 1.85, 0.3); pose.home.l.set(0.85, 1.0, -4.4); pose.home.fov = 60;
+  if (phone) {                                                      // portrait: Neo and his cards centred, the city behind
+    pose.home.p.set(2.0, 1.85, 0.3); pose.home.l.set(0.55, 1.0, -4.4); pose.home.fov = 60;
     pose.focus.p.set(1.9, 1.75, -1.0); pose.focus.l.set(0.95, 1.4, -4.6); pose.focus.fov = 55;
   } else {
     pose.home.p.set(2.3, 1.95, -1.3); pose.home.l.set(-0.5, 0.75, -10.5); pose.home.fov = 55;   // high, behind him: river + city below the sun
@@ -45,7 +45,7 @@ function size() {
   const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(pose.home.fov / 2)) * camera.aspect);
   const viewW = 2 * pose.home.p.distanceTo(NEO) * Math.tan(hfov / 2);
   sitYaw = Math.atan2(pose.home.p.x - NEO.x, pose.home.p.z - NEO.z);   // sitting, Neo (and the arc) face you
-  layoutCards(sitYaw, Math.min(0.7, (viewW * 0.09) / CARD_WIDTH));
+  layoutCards(sitYaw, Math.min(0.7, (viewW * (phone ? 0.12 : 0.09)) / CARD_WIDTH));   // bigger on phones, so the titles read
   // the reveal starts higher, further back and looking up toward the sun over the skyline, then cranes down to him
   pose.start.p.copy(pose.home.p).add(phone ? new THREE.Vector3(2.5, 3.5, 6) : new THREE.Vector3(4, 3.2, 7));
   pose.start.l.copy(SUN).multiplyScalar(700).add(new THREE.Vector3(0, 30, 0)); pose.start.fov = phone ? 66 : 48;

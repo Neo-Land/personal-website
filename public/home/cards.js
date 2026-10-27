@@ -42,7 +42,7 @@ export const cards = buttons.map((b, i) => {
   return card;
 });
 // canvas text doesn't wait for web fonts, so draw the faces again once the page's fonts are in
-Promise.all(['600 44px Fraunces', '400 22px "Instrument Sans"', '500 18px "IBM Plex Mono"'].map((f) => document.fonts.load(f)))
+Promise.all(['600 44px Fraunces', '400 22px "Instrument Sans"', '500 22px "IBM Plex Mono"'].map((f) => document.fonts.load(f)))
   .then(() => cards.forEach((c) => c.userData.redraw())).catch(() => {});
 
 // Hover targets: one invisible plane per card, fixed at its resting place and a little larger, so hovering doesn't

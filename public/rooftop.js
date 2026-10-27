@@ -162,8 +162,8 @@ const ferries = [[-200, -330, 6], [150, -560, -4.5], [-420, -780, 3.5]].map(([x,
 // Manhattan's ground: a low slab the skyline stands on, a seawall facing us, piers, and low buildings along the
 // waterfront so the towers rise out of a city instead of the water. All instanced, coloured to sink into the haze.
 const SKY_X = 280;                                               // = the skyline's shift in the loader below
-const land = new THREE.Mesh(new THREE.BoxGeometry(2500, 4, 1000), new THREE.MeshBasicMaterial({ color: 0x5a4640 }));
-land.position.set(SKY_X, -84, -1290); scene.add(land);           // top at y -82, front (the seawall) at z -790
+const land = new THREE.Mesh(new THREE.BoxGeometry(2500, 4, 1400), new THREE.MeshBasicMaterial({ color: 0x5a4640 }));
+land.position.set(SKY_X, -84, -1490); scene.add(land);           // top at y -82, front (the seawall) at z -790, back past One WTC
 const lowMat = new THREE.MeshBasicMaterial({ color: 0x4a3a3c });
 const PIERS = 34, piers = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), lowMat, PIERS);
 for (let i = 0; i < PIERS; i++) {
@@ -217,18 +217,24 @@ new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('rooftop.glb', (g) => {
   g.scene.getObjectByName('below')?.removeFromParent();          // the rooftops under the ledge: dropped, the view stays open
   g.scene.traverse((o) => {
     if (!o.isMesh) return;
-    if (o.name.startsWith('skyline')) { o.material = windows; o.position.x += SKY_X; return; }   // skyline to the right of the river
     const map = o.material.map; map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
     o.material = new THREE.MeshBasicMaterial({ map, toneMapped: false });   // the bake already is the final light
   });
   scene.add(g.scene);
-  worldReady = true; begin();
+  worldReady++; begin();
+});
+// the skyline (rooftop/build_skyline.py): real silhouettes for the landmarks, its windows drawn by the shader above
+new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('skyline.glb', (g) => {
+  g.scene.traverse((o) => { if (o.isMesh) o.material = windows; });
+  g.scene.position.x = SKY_X;                                   // to the right of the river
+  scene.add(g.scene);
+  worldReady++; begin();
 });
 
 // ── Neo ──
 const NEO = new THREE.Vector3(0.6, 0.5, -4.25);                    // on the ledge
 let SIT_YAW = 0;                                                    // facing the camera; set in size() for each screen shape
-let mixer, sit, idle, ready = false, neo, worldReady = false;
+let mixer, sit, idle, ready = false, neo, worldReady = 0;            // worldReady: 2 once the rooftop and the skyline are in
 new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load('neo-slim.glb', (g) => {
   g.scene.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.material.envMap = studio; o.material.envMapIntensity = 0.35; } });   // a faint studio reflection: leather and denim stop looking flat
   neo = g.scene; neo.position.copy(NEO);
@@ -346,7 +352,7 @@ const flyFrom = new THREE.Vector3(), tmp = new THREE.Vector3();
 const REVEAL = 4.6, POP_AT = REVEAL * 0.72, POP_GAP = 0.08, POP_LEN = 0.5;   // seconds
 let revealT = still ? REVEAL + 9 : 0, revealing = false, begun = false;
 function begin(force) {
-  if (begun || !(force || (worldReady && ready))) return;
+  if (begun || !(force || (worldReady === 2 && ready))) return;
   begun = true;
   renderer.compileAsync(scene, camera).catch(() => {}).then(() => { revealing = true; fade.classList.add('out'); });
 }

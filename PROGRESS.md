@@ -214,6 +214,13 @@ A second scene, built as a prototype on its own branch and promoted to the home 
   plays the same rise backwards, so he sits down the way he got up. The opened card now waits for the first 30 % of
   the camera move, because it used to fly straight across him and hide the whole thing. Reduced motion keeps a plain
   crossfade.
+- **A real skyline (Oct 27):** the city across the river had been 240 random boxes. `rooftop/build_skyline.py` now
+  builds it separately (seconds, no baking) with the landmarks modelled from their real silhouettes and heights,
+  arranged as seen from Weehawken: the Empire State's setbacks, crown and mast; the Chrysler's terraced crown and
+  needle; One World Trade's square twisting into an octagon, with its antenna; 30 Hudson Yards' sloped top and the
+  Edge's deck; 35 and 50 Hudson Yards and the Spiral; JPMorgan's flared 270 Park; One Vanderbilt's taper; 432 Park's
+  column. Filler towers keep clear of them and stay lower. The old skyline was stripped out of `rooftop.glb`
+  (320 → 215 KB) and the new one loads as `skyline.glb` (134 KB); the reveal waits for both.
 - **Going live:** the "preview" label and `noindex` came off, the page took the loft's search and link-preview tags
   with a new rooftop preview image, and `/rooftop.html` redirects home. Tested under the production security headers:
   the import map is identical to the loft's, so the same CSP hash covers both pages.

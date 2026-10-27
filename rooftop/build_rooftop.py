@@ -3,8 +3,8 @@
 #   /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P rooftop/build_rooftop.py
 #   SAMPLES=16 SAMPLES_HI=32 for a quick test bake (defaults 128 / 256 for the ledge).
 # Baked groups (each one texture, shown unlit in three.js): deck, ledge (its own hi-res, high-sample bake), façade,
-# props. The skyline is exported as plain geometry with UVs in metres: its lit windows are drawn live by a
-# shader in rooftop.js, so it costs no texture download. Neo isn't baked, and nothing stands in for him.
+# props. The skyline is a separate build (rooftop/build_skyline.py, no baking). Neo isn't baked, and nothing stands in
+# for him.
 # Coordinates are written in three.js terms (x right, y up, z toward the camera) and converted with B().
 import bpy, bmesh, math, os, random
 from mathutils import Vector
@@ -116,35 +116,7 @@ for i in range(16):                                     # left of the building o
         below.append(cyl(0.6, 1.0, (x + w * 0.2, top + 2.0, z), WOOD, seg=16)); below.append(cyl(0.66, 0.5, (x + w * 0.2, top + 2.75, z), WOOD, r2=0.03, seg=16))
 below = join(below, 'below')
 
-# skyline: towers with setbacks, a few spires; UVs in metres (u along the wall, v up) for the window shader
-bm = bmesh.new(); uvl = bm.loops.layers.uv.new('UVMap')
-def tower(x, z, w, d, h, base=-84.0):
-    y = base
-    for step in range(random.choice((1, 1, 2, 3))):
-        seg = h * (0.6 if step == 0 else 0.25)
-        geo = bmesh.ops.create_cube(bm, size=1)['verts']
-        for v in geo:
-            v.co = B(x + v.co.x * w, y + (v.co.z + 0.5) * seg, z + v.co.y * d)
-        y += seg; w *= 0.78; d *= 0.78
-        if y - base > h: break
-    if h > 200 and random.random() < 0.6:
-        geo = bmesh.ops.create_cone(bm, cap_ends=True, segments=4, radius1=w * 0.45, radius2=0, depth=w * 1.4)['verts']
-        for v in geo: v.co = v.co + B(x, y + w * 0.7, z)
-for i in range(240):
-    x = random.uniform(-1100, 1100); mid = math.exp(-((x + 120) / 380) ** 2)
-    h = random.uniform(30, 90) + mid * random.uniform(40, 260) * (1 if random.random() < 0.5 else 0.4)
-    tower(x, random.uniform(-1700, -850), random.uniform(18, 45), random.uniform(18, 45), h)
-bm.normal_update()
-for f in bm.faces:                                                           # planar UVs in metres by face direction
-    n = f.normal; ox = (hash((round(f.calc_center_median().x), round(f.calc_center_median().y))) % 997) * 3.0
-    for l in f.loops:
-        p = l.vert.co
-        if abs(n.z) > 0.7: l[uvl].uv = (p.x, p.y)
-        elif abs(n.x) > abs(n.y): l[uvl].uv = (p.y + ox, p.z + 84)
-        else: l[uvl].uv = (p.x + ox, p.z + 84)
-me = bpy.data.meshes.new('skyline'); bm.to_mesh(me); bm.free()
-skyline = bpy.data.objects.new('skyline', me); sc.collection.objects.link(skyline)
-skyline.data.materials.append(mat('skyline_mat', (0.1, 0.1, 0.12)))
+# (the skyline is built separately, without baking: rooftop/build_skyline.py → public/skyline.glb)
 
 # (no stand-in for Neo: a baked contact shadow stayed on the ledge when he stood up, so the bake leaves his spot clean)
 
@@ -196,14 +168,14 @@ def bake(ob, res, samples=SAMPLES):
 below.select_set(False); bpy.data.objects.remove(below)            # dropped 2026-10-22: the view over the ledge stays open
 HI = int(os.environ.get('SAMPLES_HI', 256))                          # the ledge is right in front of the camera: clean it up
 baked = {ob.name: bake(ob, res, smp) for ob, res, smp in ((deck, 2048, SAMPLES), (ledge, 2048, HI), (facade, 1024, SAMPLES), (props, 1024, SAMPLES))}
-# export materials: just the baked image (three.js shows it unlit); skyline keeps its plain material
+# export materials: just the baked image (three.js shows it unlit)
 for ob in (deck, ledge, facade, props):
     m = bpy.data.materials.new(f'{ob.name}_baked'); m.use_nodes = True
     t = m.node_tree.nodes.new('ShaderNodeTexImage'); t.image = baked[ob.name]
     m.node_tree.links.new(t.outputs['Color'], m.node_tree.nodes['Principled BSDF'].inputs['Base Color'])
     ob.data.materials.clear(); ob.data.materials.append(m)
 bpy.ops.object.select_all(action='DESELECT')
-for ob in (deck, ledge, facade, props, skyline): ob.select_set(True)
+for ob in (deck, ledge, facade, props): ob.select_set(True)
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT, 'rooftop_raw.glb'), use_selection=True, export_format='GLB',
                           export_lights=False, export_cameras=False)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, 'rooftop.blend'))

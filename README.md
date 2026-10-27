@@ -7,8 +7,8 @@
 A portfolio you look around instead of scroll through, in two scenes.
 
 **The rooftop** (home page): my 3D avatar, Neo, sits on a ledge at golden hour with Manhattan across the river and
-playing cards fanned above him: LinkedIn, my résumé and GitHub up front, with my projects, this website and an
-about-me card in a smaller hand to the left. Hover a card and it
+seven playing cards fanned in an arc around him: LinkedIn, my résumé and GitHub across the top, my projects, this
+website and an about-me card down the sides. Hover a card and it
 lifts toward you; click it and Neo gets up off the ledge as the camera glides over and the card flies up front with the details.
 
 **The loft** ([/loft.html](https://nehemiaslandaverde.com/loft.html)), the first version and still live: Neo paces a

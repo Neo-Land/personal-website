@@ -166,17 +166,24 @@ const boatGeo = (() => {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   return g;
 })();
-const paperMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+boatGeo.computeVertexNormals();                                     // flat: every fold faces its own way
+const paperMat = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9 });   // lit by the scene
+// its shadow on the water: a soft dark smudge, stretched toward the camera (the low sun is behind the city)
+const shadowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(30,18,12,.55)'); g.addColorStop(1, 'rgba(30,18,12,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const flagGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 17.5, 0), new THREE.Vector3(0, 15, 0), new THREE.Vector3(5, 16.4, 0)]);
-const flagMat = new THREE.MeshBasicMaterial({ color: 0xd8312a, side: THREE.DoubleSide }), poleMat = new THREE.MeshBasicMaterial({ color: 0x3a2a22 });
-const ferries = [[-200, -330, 6], [150, -560, -4.5], [-420, -780, 3.5]].map(([x, z, v]) => {
+const flagMat = new THREE.MeshStandardMaterial({ color: 0xd8312a, side: THREE.DoubleSide, roughness: 0.8 }), poleMat = new THREE.MeshStandardMaterial({ color: 0x3a2a22 });
+const ferries = [[-200, -330, 6], [150, -440, -4.5], [-420, -540, 3.5]].map(([x, z, v]) => {   // lanes mid-river, clear of the piers
   const f = new THREE.Group(); f.scale.setScalar(2.4);              // comically big for paper
   const boat = new THREE.Group(); f.add(boat); f.userData.boat = boat;
   const hull = new THREE.Mesh(boatGeo, paperMat);
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5.5), poleMat); pole.position.y = 15.2;
-  const flag = new THREE.Mesh(flagGeo, flagMat); f.userData.flag = flag;
+  const flag = new THREE.Mesh(flagGeo, flagMat);
   if (v < 0) boat.rotation.y = Math.PI;                               // the flag streams back, whichever way it sails
   boat.add(hull, pole, flag);
+  const shadow = new THREE.Mesh(new THREE.PlaneGeometry(30, 16), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.set(0, 0.15, 7); f.add(shadow);
   const wake = new THREE.Mesh(new THREE.PlaneGeometry(90, 7), new THREE.MeshBasicMaterial({ map: wakeTex, transparent: true, depthWrite: false }));
   wake.rotation.x = -Math.PI / 2; wake.position.set(-Math.sign(v) * 56, 0.1, 0); if (v < 0) wake.rotation.z = Math.PI;
   f.add(wake); f.position.set(x, -84, z); f.userData.v = v; f.userData.ph = Math.random() * 6; scene.add(f); return f;
@@ -330,21 +337,21 @@ Promise.all(['600 44px Fraunces', '400 22px "Instrument Sans"', '500 18px "IBM P
 const faces = hits;                                                   // what the pointer is tested against
 // the half ring: an upright arch behind him, facing the camera, from his right side over his head to his left.
 // The cards stay put; the one you point at grows toward you.
-const ring = new THREE.Object3D(); ring.position.copy(NEO).add(new THREE.Vector3(0, 0.3, -0.15)); ring.rotation.order = 'YXZ'; scene.add(ring);
+const ring = new THREE.Object3D(); ring.position.copy(NEO).add(new THREE.Vector3(0, 0.55, -0.15)); ring.rotation.order = 'YXZ'; scene.add(ring);   // high enough that the arc's ends clear the headline
 const slot = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); return s; });
-// the fan: the three cards recruiters want (data-main: LinkedIn, Résumé, GitHub) on an arc over his head; the rest
-// (projects, About me) smaller, fanned down the left side. FAN: how far each card leans with the curve (1 = radial)
-const FAN = 0.33, SIDE = 0.66;                                      // SIDE: the left-hand cards' size
+// FAN: how far each card leans with the curve (1 = fully radial)
+const FAN = 0.33;
+// all seven the same size, on a semicircle round him (ARC degrees, centred on top: wider and the ends sink behind the ledge): the
+// cards a recruiter wants (data-main: LinkedIn, Résumé, GitHub) across the top, the rest split down the two sides
+const ARC = 160;
 const isMain = buttons.map((b) => 'main' in b.dataset);
-const order = (want) => buttons.map((b, i) => i).filter((i) => isMain[i] === want);
-const slotA = [], slotK = [];                                       // each card's angle on its curve, and its size
-order(true).forEach((i, k, a) => { slotA[i] = Math.PI * (0.31 + 0.38 * k / (a.length - 1)); slotK[i] = 1; });
-const sideK = [];                                                   // each side card's place in its little hand (0 = lowest)
-order(false).forEach((i, k, a) => { slotA[i] = Math.PI * (0.12 + 0.17 * k / Math.max(1, a.length - 1)); slotK[i] = SIDE; sideK[i] = k; });
+const rest = buttons.map((b, i) => i).filter((i) => !isMain[i]), half = Math.ceil(rest.length / 2);
+const around = [...rest.slice(0, half), ...buttons.map((b, i) => i).filter((i) => isMain[i]), ...rest.slice(half)];   // left → right
+const slotA = [];                                                   // each card's angle on the arc (0 = far left, π/2 = top)
+around.forEach((i, k) => { slotA[i] = Math.PI / 2 - THREE.MathUtils.degToRad(ARC / 2) + THREE.MathUtils.degToRad(ARC) * k / (around.length - 1); });
 const angle = (i) => slotA[i];
 function arch(rx, ry) {
-  slot.forEach((s, i) => { const a = angle(i), r = isMain[i] ? 1 : phone ? 1.2 : 1.36;   // the side cards sit further out, to the left,
-    s.position.set(-Math.cos(a) * rx * r, Math.sin(a) * ry * (isMain[i] ? 1 : 1.05), isMain[i] ? 0 : 0.04 * sideK[i]); });   // each a touch in front of the last, like a hand of cards
+  slot.forEach((s, i) => { const a = angle(i); s.position.set(-Math.cos(a) * rx, Math.sin(a) * ry, 0); });
 }
 const HOVER = 1.15, LIFT = 0.1;                                              // hovered card: bigger, a little toward you
 const ringQ = new THREE.Quaternion(), rollQ = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1);
@@ -477,9 +484,8 @@ renderer.setAnimationLoop(() => {
   sky.material.uniforms.uTime.value = river.material.uniforms.uTime.value = still ? 0 : t;
   if (!still) for (const f of ferries) {
     f.position.x += f.userData.v * dt; if (Math.abs(f.position.x) > 900) f.position.x = -Math.sign(f.position.x) * 900;
-    const ph = t * 1.3 + f.userData.ph, b = f.userData.boat;          // bob and rock; the flag flutters
+    const ph = t * 1.3 + f.userData.ph, b = f.userData.boat;          // a gentle bob and rock (the flag rides along, fixed)
     b.position.y = Math.sin(ph) * 0.35; b.rotation.z = Math.sin(ph * 0.8) * 0.05; b.rotation.x = Math.sin(ph * 1.1) * 0.04;
-    f.userData.flag.scale.y = 1 + Math.sin(t * 7 + f.userData.ph) * 0.12;
   }
   faceFill.position.copy(NEO).add(tmp.subVectors(camera.position, NEO).setY(0).normalize().multiplyScalar(2.5)).setY(NEO.y + 1.8);
   faceFill.target.position.set(NEO.x, NEO.y + 0.5, NEO.z); faceFill.intensity = FILL[0] + (FILL[1] - FILL[0]) * k;
@@ -494,7 +500,7 @@ renderer.setAnimationLoop(() => {
     const u = m.userData, a = angle(i);
     slot[i].updateMatrixWorld(); slot[i].getWorldPosition(m.position);
     m.quaternion.copy(ringQ).multiply(rollQ.setFromAxisAngle(Z, (Math.PI / 2 - a) * FAN));   // fanned along the curve, gently so faces stay readable
-    hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion); hits[i].scale.setScalar(1.15 * cardScale * slotK[i]);
+    hits[i].position.copy(m.position); hits[i].quaternion.copy(m.quaternion); hits[i].scale.setScalar(1.15 * cardScale);
     const turn = easeIO(clamp01((revealT - POP_AT - i * POP_GAP - 0.3) / 0.6));   // arrives back-up, then turns face-up
     u.flip.rotation.y = Math.PI * (1 - turn);
     if (i === focused) {                                          // fly from its place on the curve to the spot up front, upright
@@ -507,7 +513,7 @@ renderer.setAnimationLoop(() => {
       m.position.addScaledVector(tmp.subVectors(camera.position, m.position).normalize(), LIFT * (u.s - 1) / (HOVER - 1));
     }
     const pop = easeOutBack(clamp01((revealT - POP_AT - i * POP_GAP) / POP_LEN));   // cards arrive one by one after the reveal
-    m.scale.setScalar(u.s * Math.max(pop, 0.0001) * (i === focused ? 1 : cardScale * slotK[i]));   // fan cards follow the screen size; the opened one doesn't
+    m.scale.setScalar(u.s * Math.max(pop, 0.0001) * (i === focused ? 1 : cardScale));   // fan cards follow the screen size; the opened one doesn't
     const op = focused >= 0 && i !== focused ? 1 - 0.7 * k : 1;
     for (const f of u.faces) f.material.opacity = op;
   });

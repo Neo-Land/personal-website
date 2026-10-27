@@ -96,7 +96,7 @@ export function drawBack(x, W, H) {
 }
 
 // ── front: the real thing — a screenshot, the name, one line of impact, what clicking does ──
-// picture windows drawn in code, in the cards' own navy, cream and gold: LinkedIn's "in" monogram, GitHub's mark
+// emblems drawn in code, in the star's denim blue on the plain cream face: LinkedIn's "in" monogram, GitHub's mark
 // (the path from Simple Icons, CC0; 24 × 24), and this site's denim star ringed by the name
 const GITHUB = new Path2D('M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12');
 function arcText(x, text, cx, cy, r, top) {                         // letters round a circle: over the top, or under it
@@ -109,23 +109,25 @@ function arcText(x, text, cx, cy, r, top) {                         // letters r
     a += top ? step : -step;
   });
 }
-function panel(x, art, ix, iy, iw, ih, img) {
-  x.fillStyle = NAVY; x.fillRect(ix, iy, iw, ih);
-  x.strokeStyle = 'rgba(217,178,95,.45)'; x.lineWidth = 1.5; x.beginPath(); x.roundRect(ix + 10, iy + 10, iw - 20, ih - 20, 8); x.stroke();
+const denim = (x, cx, cy, R) => {                                   // the star's blue: light top-left, deep bottom-right
+  const g = x.createLinearGradient(cx - R, cy - R, cx + R, cy + R);
+  g.addColorStop(0, '#7d97c9'); g.addColorStop(1, '#3e5b94'); return g;
+};
+function panel(x, art, ix, iy, iw, ih, img) {                       // plain cream, the emblem in denim
+  x.fillStyle = CREAM; x.fillRect(ix, iy, iw, ih);
   const cx = ix + iw / 2, cy = iy + ih / 2;
   if (art === 'linkedin') {
     const s = ih * 0.46;
-    x.fillStyle = CREAM; x.beginPath(); x.roundRect(cx - s / 2, cy - s / 2, s, s, s * 0.17); x.fill();
-    x.strokeStyle = GOLD; x.lineWidth = 3; x.stroke();
-    x.fillStyle = NAVY; x.font = `700 ${s * 0.64}px "Instrument Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillStyle = denim(x, cx, cy, s / 2); x.beginPath(); x.roundRect(cx - s / 2, cy - s / 2, s, s, s * 0.17); x.fill();
+    x.fillStyle = CREAM; x.font = `700 ${s * 0.64}px "Instrument Sans", system-ui, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillText('in', cx, cy + s * 0.04); x.textAlign = 'left'; x.textBaseline = 'alphabetic';
   } else if (art === 'github') {
     const s = ih * 0.5 / 24;
-    x.save(); x.translate(cx - 12 * s, cy - 12 * s); x.scale(s, s); x.fillStyle = CREAM; x.fill(GITHUB); x.restore();
+    x.save(); x.translate(cx - 12 * s, cy - 12 * s); x.scale(s, s); x.fillStyle = denim(x, 12, 12, 12); x.fill(GITHUB); x.restore();
   } else if (art === 'website') {
     const R = ih * 0.36;
     if (img) { const s = R * 1.15; x.drawImage(img, cx - s / 2, cy - s / 2, s, s); }
-    x.fillStyle = GOLD; x.font = '600 26px Fraunces, Georgia, serif'; x.textBaseline = 'middle';
+    x.fillStyle = '#3e5b94'; x.font = '600 26px Fraunces, Georgia, serif'; x.textBaseline = 'middle';
     if ('letterSpacing' in x) x.letterSpacing = '3px';
     arcText(x, 'NEHEMIAS', cx, cy, R, true); arcText(x, 'LANDAVERDE', cx, cy, R, false);
     if ('letterSpacing' in x) x.letterSpacing = '0px';
@@ -152,7 +154,7 @@ export function drawFront(x, W, H, { name, img, fit = 'cover', resume, link, art
     x.fillStyle = g; x.fillRect(ix, iy, iw, ih);
   }
   x.restore();
-  if (!fade) { x.strokeStyle = 'rgba(42,47,58,.35)'; x.lineWidth = 2; x.beginPath(); x.roundRect(ix, iy, iw, ih, 10); x.stroke(); }
+  if (!fade && !art) { x.strokeStyle = 'rgba(42,47,58,.35)'; x.lineWidth = 2; x.beginPath(); x.roundRect(ix, iy, iw, ih, 10); x.stroke(); }
   x.fillStyle = INK; x.font = '600 46px Fraunces, Georgia, serif'; x.fillText(name, 28, iy + ih + 66);
   x.fillStyle = resume ? '#a23a22' : NAVY; x.font = '500 18px "IBM Plex Mono", ui-monospace, monospace';
   x.fillText(resume ? 'DOWNLOAD ↓' : link ? 'VISIT ↗' : 'OPEN →', 28, H - 32);

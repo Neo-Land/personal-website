@@ -8,7 +8,7 @@ for reading. The [README](README.md) has the overview.
 [Loft](#3-the-loft-sept-30) · [Shipping it](#4-shipping-it-sept-30--oct-1) ·
 [Sections](#5-loft-sections-and-outfit-characters-oct-2) · [Performance](#6-performance-oct-2--oct-5) ·
 [Coin flip](#7-the-coin-flip-oct-5) · [Polish](#8-polish-oct-5--oct-6) · [Restyle](#9-loft-restyle-oct-6) ·
-[Résumé](#10-the-résumé-campfire-oct-8) · [Bugs](#11-bugs-found-later) ·
+[Résumé](#10-the-résumé-campfire-oct-8) · [Bugs](#11-bugs-found-later) · [Art deco](#13-art-deco-and-a-direct-loft-oct-28) ·
 [Rooftop](#12-the-rooftop-oct-22--oct-23)
 
 ---
@@ -262,6 +262,16 @@ A second scene, built as a prototype on its own branch and promoted to the home 
 - **Going live:** the "preview" label and `noindex` came off, the page took the loft's search and link-preview tags
   with a new rooftop preview image, and `/rooftop.html` redirects home. Tested under the production security headers:
   the import map is identical to the loft's, so the same CSP hash covers both pages.
+
+## 13. Art deco, and a direct loft (Oct 28)
+
+- **Art deco type:** the name, the card panels and the top bar went art deco to match the Manhattan skyline: Poiret
+  One capitals for the name and titles (the surname in gold over a gold rule), Josefin Sans for text and labels,
+  square gold buttons and a square double-rule frame on the panel. Self-hosted like the other fonts. The tagline is
+  now just "Pick a card, any card."
+- **Straight into the loft:** visitors reach the loft from the rooftop, so its walk-and-flick intro is set aside (the
+  code is still in `app.js`, unused). The page opens with the flick's white slice across the screen and the loft
+  fades in.
 
 ---
 

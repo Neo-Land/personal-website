@@ -205,47 +205,22 @@ document.querySelectorAll('[data-open]').forEach((b) => b.onclick = () => openFo
 document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => openFolio(b.dataset.go));
 folio.querySelector('[data-close]').onclick = () => folio.close();
 folio.addEventListener('click', (e) => { if (e.target === folio) folio.close(); });   // click outside the panel closes it
-let skipWanted = false;
-skipEl.onclick = () => skipIntro();
-function skipIntro() {                     // straight to the loft (for visitors in a hurry)
-  startEl.remove();
-  if (!neo) { skipWanted = true; skipEl.textContent = 'Loading…'; return; }
-  if (state === 'launch' || state === 'white') return;
-  state = 'white'; drag = null;
-  whiteEl.style.transition = 'opacity .5s'; whiteEl.style.opacity = 1;
-  introEl.classList.add('gone'); skipEl.classList.add('hide'); navEl.classList.remove('hide');
-  setTimeout(enterRoom, 500);
-}
-
-// ── Typed greeting (starts on page load) ──────────────────────────
-const GREETINGS = [
-  [['en', 'This is Nehemias'], ['it', 'Questo è Nehemias'], ['es', 'Este es Nehemias'], ['ja', 'こちらはネヘミアスです']],
-];
-const introEl = document.getElementById('intro');
-(async () => {
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  const quick = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const caret = document.createElement('span'); caret.className = 'caret';
-  const lines = GREETINGS[0].map(([lang]) => {
-    const div = document.createElement('div'); div.lang = lang;
-    const txt = div.appendChild(document.createElement('span'));
-    introEl.appendChild(div); return txt;
-  });
-  const put = (i) => lines[i].parentNode.appendChild(caret);
-  async function type(set) {
-    for (let i = 0; i < set.length; i++) {
-      put(i);
-      if (quick) { lines[i].textContent = set[i][1]; continue; }
-      for (const ch of set[i][1]) {
-        lines[i].appendChild(document.createElement('i')).textContent = ch;
-        await wait(45 + Math.random() * 60);
-      }
-      await wait(260);
-    }
-  }
-  await wait(500);
-  await type(GREETINGS[0]);
+// Straight in: visitors come from the rooftop, so the walk-and-flick intro stays hidden. The screen slices open
+// white (the flick's tear, across the middle) and the loft fades in once Neo is loaded.
+let neoReady; const neoLoaded = new Promise((r) => { neoReady = r; });
+skipEl.remove(); startEl.remove();
+renderer.domElement.style.visibility = 'hidden';
+(function slice(t0 = performance.now()) {
+  const rk = Math.min((performance.now() - t0) / 900, 1);
+  ripEl.style.display = 'block';
+  ripEl.style.height = `${(rk ** 2.2 * 2.2 * Math.hypot(innerWidth, innerHeight)).toFixed(1)}px`;
+  ripEl.style.transform = `translate(${innerWidth / 2}px, ${innerHeight / 2}px) translate(-50%, -50%) rotate(-0.45rad)`;
+  if (rk < 1) return requestAnimationFrame(() => slice(t0));
+  whiteEl.style.transition = 'none'; whiteEl.style.opacity = 1; ripEl.remove();
+  neoLoaded.then(() => { state = 'white'; renderer.domElement.style.visibility = ''; enterRoom(); });
 })();
+
+const introEl = document.getElementById('intro');
 
 // ── White room + globe (beat 7) ───────────────────────────────────
 // Your places: edit freely (lat/lng from any map). Each one becomes a pin in the globe.
@@ -1031,6 +1006,8 @@ function freeIntro() {
 }
 const feet = {};
 let walkPrev = 0;
+// Set aside: the walk-and-flick intro below (walking → approach → turning → zooming → ready → launch) no longer
+// runs; the page opens with slice() instead. To bring it back, call neo's walk again instead of hiding the canvas.
 let state = 'walking', angle = 0, turnFrom = 0, turnTo = 0, turnT = 0, zoomS = 0;
 const camFrom = new THREE.Vector3(), lookFrom = new THREE.Vector3();
 
@@ -1060,8 +1037,7 @@ gltfLoader().load('neo.glb', (gltf) => {
   hit = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.05), new THREE.MeshBasicMaterial({ visible: false }));
   hit.position.y = 0.52;
   neo.add(hit);
-  if (skipWanted) skipIntro();
-  else setTimeout(() => state === 'walking' && startEl.classList.add('on'), 1800);
+  neoReady();
 });
 
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();

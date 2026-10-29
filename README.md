@@ -11,12 +11,14 @@ seven playing cards fanned in an arc around him: LinkedIn, my résumé and GitHu
 website and an about-me card down the sides. Hover a card and it
 lifts toward you; click it and Neo gets up off the ledge as the camera glides over and the card flies up front with the details.
 
-**The loft** ([/loft.html](https://nehemiaslandaverde.com/loft.html)), the first version and still live: Neo paces a
-dark void; click anywhere and he picks up his hackathon coin. Flick it upward and it streaks off like a shooting
-star, splitting the screen open into a sunlit loft where each part of the portfolio is a place in the room: a globe
+**The loft** ([/loft.html](https://nehemiaslandaverde.com/loft.html)), the first version and still live: the screen
+slices open in white light into a sunlit loft where each part of the portfolio is a place in the room: a globe
 of places I've been, a garage for projects, and a campfire where my résumé floats, ready to read or download.
 
-![Neo picks up his hackathon coin, flicks it into a shooting star, and the screen opens into the loft](docs/preview.webp)
+Its original intro (Neo picks up the coin and you flick it into a shooting star that slices the screen open) is set
+aside in the code, since the rooftop now does that job:
+
+![The original loft intro: Neo picks up his hackathon coin, flicks it into a shooting star, and the screen opens into the loft](docs/preview.webp)
 
 Built from scratch with **three.js** (no framework, no build step), with the character made in **Tripo**, rigged in
 **Mixamo** and animated in **Blender**. Hosted on **Cloudflare** as a static site with a strict security policy.
@@ -89,7 +91,7 @@ Then open <http://localhost:8000/>.
 | `public/` | **The deployed site: only this folder is published** |
 | `public/index.html`, `rooftop.css` | The rooftop home page: markup (incl. the cards' info panels) and styles |
 | `public/home/` | The rooftop's code, one module per part: `main.js` (page logic, camera, input), `stage.js`, `look.js` (cinematic pass), `sky.js`, `river.js` (paper boats), `city.js` (shore + skyline), `neo.js`, `cards.js`, `card-art.js`, `coin.js` (the hackathon-coin easter egg) |
-| `public/loft.html`, `app.js`, `style.css` | The loft: intro, coin flip, loft, globe and résumé |
+| `public/loft.html`, `app.js`, `style.css` | The loft: the slice-open entrance, loft, globe and résumé (the coin-flip intro is set aside in `app.js`) |
 | `rooftop/` | Blender scripts: the rooftop build-and-bake, the Manhattan skyline (landmarks modelled to their real silhouettes), and the recipe that slims Neo |
 | `public/*.glb` | Neo, his outfit variants, the car, the coin and props (meshopt + WebP) |
 | `public/vendor/` | Self-hosted three.js, meshopt decoder, Earth textures, font (licences in `LICENSES.txt`) |

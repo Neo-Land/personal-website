@@ -273,6 +273,13 @@ A second scene, built as a prototype on its own branch and promoted to the home 
   code is still in `app.js`, unused). The page opens with the flick's white slice across the screen and the loft
   fades in.
 
+## 14. An eighth card: AI Research Radar (Oct 30)
+
+- Added AI Research Radar, my RAG project, as a card on the rooftop and to the loft's project list. The arc lays
+  itself out from the number of cards, so it needed no new code.
+- The wider arc pushed "About me" off the right edge on phones, so the phone card size went from 12% to 10.3% of the
+  view width, which keeps the arc about as wide as it was with seven cards.
+
 ---
 
 ### Gotchas worth keeping

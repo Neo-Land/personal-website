@@ -54,6 +54,7 @@
   <li><button type="button" class="card" data-main data-d="github" data-href="https://github.com/Neo-Land" data-art="github">GitHub</button></li>
   <li><button type="button" class="card" data-d="hobitual" data-img="scene/hobitual.jpg">Hobitual</button></li>
   <li><button type="button" class="card" data-d="gamify" data-img="scene/gamify.jpg">Gamify.Life</button></li>
+  <li><button type="button" class="card" data-d="radar" data-img="scene/research-radar.jpg">AI Research Radar</button></li>
   <li><button type="button" class="card" data-d="loft" data-art="website" data-img="apple-touch-icon.png">This website</button></li>
   <li><button type="button" class="card" data-d="about" data-img="scene/about-me.webp" data-fade>About me</button></li>
 </ul>
@@ -78,6 +79,13 @@
   <p>Server-authoritative progression validated with Zod and committed with Postgres advisory locks, row-level security, and 125+ Vitest/Playwright tests with axe accessibility checks.</p>
   <ul class="chips"><li>Next.js</li><li>TypeScript</li><li>Supabase</li><li>PostgreSQL</li><li>Pixi.js</li></ul>
   <p class="links"><a href="https://gamify-life-amber.vercel.app" target="_blank" rel="noopener">Live ↗</a><a href="https://github.com/Neo-Land/Gamify-Life" target="_blank" rel="noopener">Code ↗</a></p>
+</template>
+<template id="d-radar">
+  <p class="kicker">Project · RAG and evaluation</p><h2 id="d-title">AI Research Radar</h2>
+  <p>Ask a question about AI and get a short brief built from 10,000 recent arXiv papers, with every claim cited to the paper it came from.</p>
+  <p>I benchmarked nine retrieval setups on 40 test questions: hybrid search plus a reranker took top-1 accuracy from 42% with keywords alone to 75%. A separate model fact-checks each claim against its cited abstracts, and what it caught drove a prompt fix that raised claim faithfulness from 85% to 92%.</p>
+  <ul class="chips"><li>Python</li><li>RAG</li><li>Claude API</li><li>Streamlit</li><li>Claude Code</li></ul>
+  <p class="links"><a href="https://github.com/Neo-Land/ai-research-radar" target="_blank" rel="noopener">Code ↗</a></p>
 </template>
 <template id="d-loft">
   <p class="kicker">Project · This website</p><h2 id="d-title">The rooftop</h2>

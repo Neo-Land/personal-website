@@ -48,7 +48,7 @@ function size() {
   const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(pose.home.fov / 2)) * camera.aspect);
   const viewW = 2 * pose.home.p.distanceTo(NEO) * Math.tan(hfov / 2);
   sitYaw = Math.atan2(pose.home.p.x - NEO.x, pose.home.p.z - NEO.z);   // sitting, Neo (and the arc) face you
-  layoutCards(sitYaw, Math.min(0.7, (viewW * (phone ? 0.12 : 0.09)) / CARD_WIDTH));   // bigger on phones, so the titles read
+  layoutCards(sitYaw, Math.min(0.7, (viewW * (phone ? 0.103 : 0.09)) / CARD_WIDTH));   // bigger on phones, so the titles read
   // the reveal starts higher, further back and looking up toward the sun over the skyline, then cranes down to him
   pose.start.p.copy(pose.home.p).add(phone ? new THREE.Vector3(2.5, 3.5, 6) : new THREE.Vector3(4, 3.2, 7));
   pose.start.l.copy(SUN).multiplyScalar(700).add(new THREE.Vector3(0, 30, 0)); pose.start.fov = phone ? 66 : 48;

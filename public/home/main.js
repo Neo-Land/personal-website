@@ -21,7 +21,7 @@ import { updateSky } from './sky.js';
 import { updateRiver } from './river.js';
 import { cityReady } from './city.js';
 import { neoReady, stand, updateNeo } from './neo.js';
-import { buttons, cards, layoutCards, pickCard, updateCards, CARD_WIDTH } from './cards.js';
+import { buttons, cards, arcOrder, layoutCards, pickCard, updateCards, CARD_WIDTH } from './cards.js';
 import { pickCoin, openCoin, closeCoin, coinOpen, updateCoin } from './coin.js';
 
 const info = document.getElementById('info'), infoBody = document.getElementById('d-body'), backButton = document.getElementById('back');
@@ -135,10 +135,29 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   hovered = pick(e); coinHover = hovered < 0 && onCoin(e);
   renderer.domElement.style.cursor = hovered >= 0 || coinHover ? 'pointer' : '';
 });
+// Phones: swiping up enlarges the cards one by one from the left of the arc to the right; swiping down goes back. The
+// page itself doesn't scroll. The card stays enlarged when the finger lifts, so it can be tapped.
+const SWIPE_SPAN = 0.6, SWIPE_SLOP = 10;                            // share of the screen height for the whole arc; px before it counts
+let swipeY = null, swipeMoved = 0, swipePos = 0, swipeCard = -1, swiped = false;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  swiped = false;
+  if (e.pointerType !== 'touch' || !e.isPrimary) return;
+  swipeY = e.clientY; swipeMoved = 0;
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'touch' || !e.isPrimary || swipeY === null) return;
+  const dy = swipeY - e.clientY; swipeY = e.clientY; swipeMoved += Math.abs(dy);
+  if (!phone || swipeMoved < SWIPE_SLOP || revealT < POP_AT || focused >= 0 || coinOpen()) return;
+  swiped = true;
+  swipePos = clamp01(swipePos + dy / (innerHeight * SWIPE_SPAN));
+  swipeCard = arcOrder[Math.round(swipePos * (arcOrder.length - 1))];
+});
+for (const ev of ['pointerup', 'pointercancel']) renderer.domElement.addEventListener(ev, () => (swipeY = null));
 renderer.domElement.addEventListener('click', (e) => {
+  if (swiped) { swiped = false; return; }                           // the end of a swipe isn't a tap
   if (coinOpen()) { close(); return; }                              // any click puts the coin back
   const i = pick(e);
-  if (i >= 0) act(i); else if (onCoin(e)) openMedal(); else close();
+  if (i >= 0) act(i); else if (onCoin(e)) openMedal(); else { swipeCard = -1; close(); }
 });
 medalButton.addEventListener('click', openMedal);
 const drift = new THREE.Vector2(), driftNow = new THREE.Vector2();  // the camera drifts a little with the mouse
@@ -193,7 +212,7 @@ renderer.setAnimationLoop(() => {
   updateSky(still ? 0 : t, k);
   updateRiver(dt, t, !still);
   updateNeo(dt, k, sitYaw, Math.atan2(pose.focus.p.x - NEO.x, pose.focus.p.z - NEO.z));   // standing, he turns to face you
-  updateCards(dt, { revealT, popAt: POP_AT, highlighted: focused < 0 ? (hovered >= 0 ? hovered : keyboard) : -1,
+  updateCards(dt, { revealT, popAt: POP_AT, highlighted: focused < 0 ? (hovered >= 0 ? hovered : swipeCard >= 0 ? swipeCard : keyboard) : -1,
     focused, flyFrom, dir, t01, k, spot: focusSpot(), phone });
   updateCoin(dt, t, phone, coinHover);
   renderWithLook(dt, t, k, phone);

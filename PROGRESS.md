@@ -280,6 +280,13 @@ A second scene, built as a prototype on its own branch and promoted to the home 
 - The wider arc pushed "About me" off the right edge on phones, so the phone card size went from 12% to 10.3% of the
   view width, which keeps the arc about as wide as it was with seven cards.
 
+## 15. Swipe through the cards on phones (Oct 30)
+
+- Phone cards are small, so swiping up now enlarges them one at a time from the left of the arc to the right, and
+  swiping down goes back. The enlarged card stays big so it can be tapped; tapping empty space resets it.
+- The canvas sets `touch-action: pinch-zoom`, so the browser doesn't treat swipes as pull-to-refresh but pinch-zoom
+  still works.
+
 ---
 
 ### Gotchas worth keeping

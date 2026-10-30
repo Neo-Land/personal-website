@@ -15,6 +15,7 @@ const ARC = 140;                                                    // degrees o
 const GAP = 0.04;                                                   // space between neighbouring cards' bottom corners (m)
 const FAN = 1;                                                      // how far each card leans with the curve (1 = fully radial)
 const HOVER = 1.15, LIFT = 0.1;                                     // a hovered card: bigger, and a little toward you
+const PHONE_HOVER = 1.6;                                            // phones: bigger, so a swiped-to card can be read
 const CARD_LAG = 0.3;                                               // share of the camera move before the opened card sets off
 const POP_GAP = 0.08, POP_LEN = 0.5;                                // seconds between cards arriving, and each arrival
 
@@ -58,6 +59,7 @@ const slots = cards.map(() => { const s = new THREE.Object3D(); ring.add(s); ret
 const isMain = buttons.map((b) => 'main' in b.dataset);
 const rest = buttons.map((b, i) => i).filter((i) => !isMain[i]), half = Math.ceil(rest.length / 2);
 const leftToRight = [...rest.slice(0, half), ...buttons.map((b, i) => i).filter((i) => isMain[i]), ...rest.slice(half)];
+export const arcOrder = leftToRight;                                // card indices from the far left of the arc to the far right
 const slotAngle = [], slotDepth = [];                               // angle on the arc (0 = far left, π/2 = top); depth
 leftToRight.forEach((i, k) => {
   slotAngle[i] = Math.PI / 2 - THREE.MathUtils.degToRad(ARC / 2) + THREE.MathUtils.degToRad(ARC) * k / (leftToRight.length - 1);
@@ -102,8 +104,10 @@ export function updateCards(dt, s) {
       m.quaternion.slerp(camera.quaternion, kc);
       u.s = 1 + kc * (s.phone ? 0.25 : 0.4);
     } else {
-      u.s += ((i === s.highlighted ? HOVER : 1) - u.s) * Math.min(1, still ? 1 : dt * 10);
-      m.position.addScaledVector(tmp.subVectors(camera.position, m.position).normalize(), LIFT * (u.s - 1) / (HOVER - 1));
+      const hover = s.phone ? PHONE_HOVER : HOVER;
+      u.s += ((i === s.highlighted ? hover : 1) - u.s) * Math.min(1, still ? 1 : dt * 10);
+      m.position.addScaledVector(tmp.subVectors(camera.position, m.position).normalize(), LIFT * (u.s - 1) / (hover - 1));
+      if (s.phone) { hits[i].position.copy(m.position); hits[i].scale.setScalar(1.15 * scale * u.s); }   // no mouse to flicker: tap the card where it now is
     }
     const pop = easeOutBack(clamp01((s.revealT - s.popAt - i * POP_GAP) / POP_LEN));   // arriving one by one after the reveal
     m.scale.setScalar(u.s * Math.max(pop, 0.0001) * (i === s.focused ? 1 : scale));   // the opened one keeps its full size
